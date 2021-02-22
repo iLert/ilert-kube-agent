@@ -20,5 +20,5 @@ code-generator:
 		-e CLIENT_GENERATOR_OUT=$(PROJECT_PACKAGE)/pkg/client \
 		-e APIS_ROOT=$(PROJECT_PACKAGE)/pkg/apis \
 		-e GROUPS_VERSION="incident:v1" \
-		-e GENERATION_TARGETS="deepcopy,client" \
+		-e GENERATION_TARGETS="all" \
 		quay.io/slok/kube-code-generator:v1.17.3
