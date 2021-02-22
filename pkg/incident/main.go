@@ -1,6 +1,7 @@
 package incident
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/iLert/ilert-go"
+	shared "github.com/iLert/ilert-kube-agent"
 	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
 	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/utils"
@@ -18,7 +20,7 @@ var ilertClient *ilert.Client
 // CreateEvent creates an incident event
 func CreateEvent(ilertAPIKey string, incidentKey string, summary string, details string, eventType string, priority string) *int64 {
 	if ilertClient == nil {
-		ilertClient = ilert.NewClient()
+		ilertClient = ilert.NewClient(ilert.WithUserAgent(fmt.Sprintf("ilert-kube-agent/%s", shared.Version)))
 	}
 
 	event := &ilert.Event{
