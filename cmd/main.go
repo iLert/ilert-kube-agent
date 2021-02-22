@@ -9,16 +9,18 @@ import (
 	"syscall"
 	"time"
 
+	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/logger"
 	"github.com/iLert/ilert-kube-agent/pkg/router"
 	"github.com/iLert/ilert-kube-agent/pkg/storage"
 	"github.com/iLert/ilert-kube-agent/pkg/watcher"
+
 	"github.com/rs/zerolog/log"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
@@ -31,9 +33,8 @@ const (
 )
 
 func main() {
-	logger.Init()
-
 	cfg := parseAndValidateFlags()
+	logger.Init(cfg.LogLevel)
 
 	srg := &storage.Storage{}
 	srg.Init()
@@ -59,11 +60,17 @@ func main() {
 		log.Fatal().Err(err).Msg("Unable to get hostname")
 	}
 
-	config, err := rest.InClusterConfig()
+	config, err := clientcmd.BuildConfigFromFlags(cfg.Master, cfg.KubeConfig)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create in in-cluster config")
+		log.Fatal().Err(err).Msg("Failed to build kubeconfig")
 	}
+
 	kubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create kube client")
+	}
+
+	agentKubeClient, err := agentclientset.NewForConfig(config)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create kube client")
 	}
@@ -110,7 +117,7 @@ func main() {
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(_ context.Context) {
 				log.Info().Str("identity", id).Msg("I am the new leader")
-				watcher.Start(kubeClient, metricsClient, cfg)
+				watcher.Start(kubeClient, metricsClient, agentKubeClient, cfg)
 			},
 			OnStoppedLeading: func() {
 				watcher.Stop()

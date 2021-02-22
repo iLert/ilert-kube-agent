@@ -3,6 +3,7 @@ module github.com/iLert/ilert-kube-agent
 go 1.15
 
 require (
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/gin-contrib/logger v0.0.2
 	github.com/gin-contrib/size v0.0.0-20200916080119-37b334d93b20
 	github.com/gin-gonic/gin v1.6.3

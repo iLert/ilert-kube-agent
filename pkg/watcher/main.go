@@ -5,6 +5,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
+	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 )
 
@@ -32,15 +33,15 @@ const (
 var containerTerminatedReasons = []string{Terminated, OOMKilled, Error, ContainerCannotRun, DeadlineExceeded}
 
 // Start starts watcher
-func Start(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, cfg *config.Config) {
+func Start(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	log.Info().Msg("Start watcher")
 
 	if cfg.EnablePodAlarms {
-		go startPodInformer(kubeClient, cfg)
-		go startPodChecker(kubeClient, metricsClient, cfg)
+		go startPodInformer(kubeClient, agentKubeClient, cfg)
+		go startPodChecker(kubeClient, metricsClient, agentKubeClient, cfg)
 	}
 	if cfg.EnableNodeAlarms {
-		go startNodeInformer(kubeClient, cfg)
+		go startNodeInformer(kubeClient, agentKubeClient, cfg)
 	}
 }
 

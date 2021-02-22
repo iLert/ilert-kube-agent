@@ -2,6 +2,10 @@ package config
 
 // Config definition
 type Config struct {
+	KubeConfig                       string
+	Master                           string
+	Namespace                        string
+	LogLevel                         string
 	APIKey                           string
 	EnablePodAlarms                  bool
 	EnablePodTerminateAlarms         bool

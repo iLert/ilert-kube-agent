@@ -3,6 +3,7 @@ package watcher
 import (
 	"fmt"
 
+	"github.com/dustin/go-humanize"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,16 +12,17 @@ import (
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	"github.com/iLert/ilert-go"
+	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/incident"
 )
 
 var podCheckerCron *cron.Cron
 
-func startPodChecker(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, cfg *config.Config) {
+func startPodChecker(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	podCheckerCron = cron.New()
 	podCheckerCron.AddFunc(fmt.Sprintf("@every %ds", cfg.ResourcesCheckerInterval), func() {
-		checkPods(kubeClient, metricsClient, cfg)
+		checkPods(kubeClient, metricsClient, agentKubeClient, cfg)
 	})
 
 	log.Info().Msg("Starting pods checker")
@@ -34,9 +36,7 @@ func stopPodMetricsChecker() {
 	}
 }
 
-func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, cfg *config.Config) {
-	log.Info().Msg("Checking pods...")
-
+func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	pods, err := kubeClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
@@ -44,11 +44,16 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 
 	for _, pod := range pods.Items {
 		if cfg.EnableResourcesAlarms {
+			podKey := getPodKey(&pod)
+			incidentRef := incident.GetIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
+
 			podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(pod.GetNamespace()).Get(pod.GetName(), metav1.GetOptions{})
 			if err != nil {
 				log.Debug().Err(err).Msg("Failed to get pod metrics")
 				continue
 			}
+
+			healthy := true
 			podContainers := pod.Spec.Containers
 			for _, container := range podContainers {
 				metricsContainer := getContainerByName(container.Name, podMetrics.Containers)
@@ -80,13 +85,17 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 							Int64("usage", cpuUsage).
 							Msg("Checking CPU limit")
 						if cpuUsage >= (int64(cfg.ResourcesThreshold) * (cpuLimit / 100)) {
-							incident.CreateEvent(
-								cfg.APIKey,
-								getPodKey(&pod),
-								fmt.Sprintf("Pod %s/%s CPU limit reached > %d%", pod.GetNamespace(), pod.GetName(), cfg.ResourcesThreshold),
-								getPodDetailsWithUsageLimit(kubeClient, &pod, fmt.Sprintf("%d CPU", cpuUsage), fmt.Sprintf("%d CPU", cpuLimit)),
-								ilert.EventTypes.Alert,
-								cfg.ResourcesAlarmIncidentPriority)
+							healthy = false
+							if incidentRef == nil {
+								incidentID := incident.CreateEvent(
+									cfg.APIKey,
+									podKey,
+									fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.ResourcesThreshold),
+									getPodDetailsWithUsageLimit(kubeClient, &pod, fmt.Sprintf("%d CPU", cpuUsage), fmt.Sprintf("%d CPU", cpuLimit)),
+									ilert.EventTypes.Alert,
+									cfg.ResourcesAlarmIncidentPriority)
+								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID)
+							}
 						}
 					}
 				}
@@ -101,16 +110,30 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 							Int64("usage", memoryUsage).
 							Msg("Checking memory limit")
 						if memoryUsage >= (int64(cfg.ResourcesThreshold) * (memoryLimit / 100)) {
-							incident.CreateEvent(
-								cfg.APIKey,
-								getPodKey(&pod),
-								fmt.Sprintf("Pod %s/%s memory limit reached > %d%", pod.GetNamespace(), pod.GetName(), cfg.ResourcesThreshold),
-								getPodDetailsWithUsageLimit(kubeClient, &pod, fmt.Sprintf("%d", memoryUsage), fmt.Sprintf("%d", memoryLimit)),
-								ilert.EventTypes.Alert,
-								cfg.ResourcesAlarmIncidentPriority)
+							healthy = false
+							if incidentRef == nil {
+								incidentID := incident.CreateEvent(
+									cfg.APIKey,
+									podKey,
+									fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.ResourcesThreshold),
+									getPodDetailsWithUsageLimit(kubeClient, &pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit))),
+									ilert.EventTypes.Alert,
+									cfg.ResourcesAlarmIncidentPriority)
+								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID)
+							}
 						}
 					}
 				}
+			}
+			if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 {
+				incident.CreateEvent(
+					cfg.APIKey,
+					podKey,
+					fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()),
+					"",
+					ilert.EventTypes.Resolve,
+					cfg.ResourcesAlarmIncidentPriority)
+				incident.DeleteIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
 			}
 		}
 	}

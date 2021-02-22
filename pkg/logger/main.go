@@ -10,11 +10,10 @@ import (
 	"k8s.io/klog/v2"
 
 	shared "github.com/iLert/ilert-kube-agent"
-	"github.com/iLert/ilert-kube-agent/pkg/utils"
 )
 
 // Init initializes logs
-func Init() {
+func Init(logLevel string) {
 	log.Logger = log.With().Caller().Logger().Output(zerolog.ConsoleWriter{
 		Out:        os.Stderr,
 		NoColor:    true,
@@ -23,7 +22,6 @@ func Init() {
 			return strings.ToLower(fmt.Sprintf("level=%s", i))
 		},
 	})
-	logLevel := utils.GetEnv("LOG_LEVEL", "info")
 	switch logLevel {
 	case "debug":
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)

@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
+	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/incident"
 	"github.com/iLert/ilert-kube-agent/pkg/utils"
@@ -17,52 +18,62 @@ import (
 
 var podInformerStopper chan struct{}
 
-func startPodInformer(kubeClient *kubernetes.Clientset, cfg *config.Config) {
+func startPodInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	factory := informers.NewSharedInformerFactory(kubeClient, 0)
 	podInformer := factory.Core().V1().Pods().Informer()
 	podInformerStopper = make(chan struct{})
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 			pod := newObj.(*api.Pod)
-			log.Info().Interface("pod", pod.Name).Msg("Update Pod")
+			log.Debug().Interface("pod", pod.Name).Msg("Update Pod")
+			podKey := getPodKey(pod)
+			incidentRef := incident.GetIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
 
 			for _, containerStatus := range pod.Status.ContainerStatuses {
 				if containerStatus.State.Terminated != nil &&
 					utils.StringContains(containerTerminatedReasons, containerStatus.State.Terminated.Reason) &&
-					cfg.EnablePodTerminateAlarms {
-					incident.CreateEvent(
+					cfg.EnablePodTerminateAlarms && incidentRef == nil {
+					incidentID := incident.CreateEvent(
 						cfg.APIKey,
-						getPodKey(pod),
+						podKey,
 						fmt.Sprintf("Pod %s/%s terminated - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Terminated.Reason),
 						getPodDetailsWithStatus(kubeClient, pod, &containerStatus),
 						ilert.EventTypes.Alert,
 						cfg.PodAlarmIncidentPriority)
+					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID)
 					break
 				}
 
 				if containerStatus.State.Waiting != nil &&
 					utils.StringContains(containerWaitingReasons, containerStatus.State.Waiting.Reason) &&
-					cfg.EnablePodWaitingAlarms {
-					incident.CreateEvent(
+					cfg.EnablePodWaitingAlarms && incidentRef == nil {
+					incidentID := incident.CreateEvent(
 						cfg.APIKey,
-						getPodKey(pod),
+						podKey,
 						fmt.Sprintf("Pod %s/%s waiting - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Waiting.Reason),
 						getPodDetailsWithStatus(kubeClient, pod, &containerStatus),
 						ilert.EventTypes.Alert,
 						cfg.PodAlarmIncidentPriority)
+					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID)
 					break
 				}
 
-				if cfg.EnablePodRestartsAlarms && containerStatus.RestartCount >= cfg.PodRestartThreshold {
-					incident.CreateEvent(
+				if cfg.EnablePodRestartsAlarms && containerStatus.RestartCount >= cfg.PodRestartThreshold && incidentRef == nil {
+					incidentID := incident.CreateEvent(
 						cfg.APIKey,
-						getPodKey(pod),
+						podKey,
 						fmt.Sprintf("Pod %s/%s restarts threshold reached: %d", pod.GetNamespace(), pod.GetName(), containerStatus.RestartCount),
 						getPodDetailsWithStatus(kubeClient, pod, &containerStatus),
 						ilert.EventTypes.Alert,
 						cfg.PodRestartsAlarmIncidentPriority)
+					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID)
 				}
 			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			pod := obj.(*api.Pod)
+			log.Debug().Interface("pod", pod.Name).Msg("Delete Pod")
+			incident.DeleteIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
 		},
 	})
 

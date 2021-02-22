@@ -11,8 +11,11 @@ import (
 )
 
 var (
+	kubeconfig                       string
+	master                           string
 	port                             string
 	namespace                        string
+	logLevel                         string
 	electionID                       string
 	ilertAPIKey                      string
 	enablePodAlarms                  bool
@@ -33,7 +36,10 @@ var (
 func parseAndValidateFlags() *config.Config {
 	flags := pflag.NewFlagSet("", pflag.ExitOnError)
 
+	flags.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	flags.StringVar(&master, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	flags.StringVar(&namespace, "namespace", "kube-system", "Namespace in which agent run.")
+	flags.StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error, fatal).")
 	flags.StringVar(&electionID, "election-id", "ilert-kube-agent", "The lease lock resource name")
 	flags.StringVar(&port, "port", "9092", "The metrics server port")
 	flags.StringVar(&ilertAPIKey, "ilert-api-key", "", "The iLert alert source api key")
@@ -48,8 +54,8 @@ func parseAndValidateFlags() *config.Config {
 	flags.StringVar(&podRestartsAlarmIncidentPriority, "pod-restart-alarm-incident-priority", "LOW", "The pod restarts alarm incident priority")
 	flags.StringVar(&nodeAlarmIncidentPriority, "node-alarm-incident-priority", "HIGH", "The node alarm incident priority")
 	flags.StringVar(&resourcesAlarmIncidentPriority, "resources-alarm-incident-priority", "HIGH", "The node alarm incident priority")
-	flags.Int32Var(&resourcesCheckerInterval, "resources-checker-interval", 10, "The resources checker interval in seconds")
-	flags.Int32Var(&resourcesThreshold, "resources-threshold", 60, "The resources persentage threshold from 10 to 100")
+	flags.Int32Var(&resourcesCheckerInterval, "resources-checker-interval", 30, "The resources checker interval in seconds")
+	flags.Int32Var(&resourcesThreshold, "resources-threshold", 90, "The resources persentage threshold from 10 to 100")
 
 	flags.Set("logtostderr", "true")
 	flags.AddGoFlagSet(flag.CommandLine)
@@ -68,12 +74,25 @@ func parseAndValidateFlags() *config.Config {
 	if electionID == "" {
 		log.Fatal().Msg("Election ID is required.")
 	}
+
+	namespaceEnv := utils.GetEnv("NAMESPACE", "")
+	if namespaceEnv != "" {
+		namespace = namespaceEnv
+	}
 	if namespace == "" {
 		log.Fatal().Msg("Namespace is required.")
 	}
 
 	if ilertAPIKey == "" {
 		log.Fatal().Msg("iLert api key is required.")
+	}
+
+	logLevelEnv := utils.GetEnv("LOG_LEVEL", "")
+	if logLevelEnv != "" {
+		logLevel = logLevelEnv
+	}
+	if logLevel != "debug" && logLevel != "info" && logLevel != "warn" && logLevel != "error" && logLevel != "fatal" {
+		log.Fatal().Msg("Invalid --log-level flag value.")
 	}
 
 	if podAlarmIncidentPriority != "HIGH" && podAlarmIncidentPriority != "LOW" {
@@ -97,6 +116,10 @@ func parseAndValidateFlags() *config.Config {
 	}
 
 	return &config.Config{
+		Master:                           master,
+		KubeConfig:                       kubeconfig,
+		Namespace:                        namespace,
+		LogLevel:                         logLevel,
 		APIKey:                           ilertAPIKey,
 		EnablePodAlarms:                  enablePodAlarms,
 		EnablePodTerminateAlarms:         enablePodTerminateAlarms,

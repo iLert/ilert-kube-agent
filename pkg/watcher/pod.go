@@ -11,7 +11,7 @@ import (
 )
 
 func getPodKey(pod *api.Pod) string {
-	return fmt.Sprintf("%s/%s", pod.GetName(), pod.GetNamespace())
+	return fmt.Sprintf("%s/%s", pod.GetNamespace(), pod.GetName())
 }
 func getPodDetailsWithUsageLimit(kubeClient *kubernetes.Clientset, pod *api.Pod, usage string, limit string) string {
 	details := fmt.Sprintf("Name: %s\nNamespace: %s",
