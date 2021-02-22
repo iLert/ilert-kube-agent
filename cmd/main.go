@@ -121,7 +121,7 @@ func main() {
 			},
 			OnStoppedLeading: func() {
 				watcher.Stop()
-				log.Fatal().Str("identity", id).Msg("I am not leader anymore")
+				log.Info().Str("identity", id).Msg("I am not leader anymore")
 			},
 			OnNewLeader: func(identity string) {
 				log.Info().Str("identity", identity).Msg("New leader elected")
