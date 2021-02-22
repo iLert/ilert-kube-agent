@@ -13,9 +13,11 @@ var SchemeGroupVersion = schema.GroupVersion{
 }
 
 var (
+	// SchemeBuilder definition
 	SchemeBuilder      runtime.SchemeBuilder
 	localSchemeBuilder = &SchemeBuilder
-	AddToScheme        = localSchemeBuilder.AddToScheme
+	// AddToScheme definition
+	AddToScheme = localSchemeBuilder.AddToScheme
 )
 
 func init() {
