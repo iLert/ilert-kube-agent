@@ -1,0 +1,174 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: incidents.ilert.com
+spec:
+  group: ilert.com
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+  names:
+    plural: incidents
+    singular: incident
+    listKind: IncidentList
+    kind: Incident
+  validation:
+    openAPIV3Schema:
+      required: ["spec"]
+      properties:
+        spec:
+          required: ["id"]
+          properties:
+            replicas:
+              type: "integer"
+              minimum: 0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ilert-kube-agent
+  namespace: kube-system
+  labels:
+    app: ilert-kube-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ilert-kube-agent
+  template:
+    metadata:
+      labels:
+        app: ilert-kube-agent
+      annotations:
+        prometheus.io/port: "9092"
+        prometheus.io/scrape: "true"
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccountName: ilert-kube-agent
+      containers:
+        - name: ilert-kube-agent
+          image: "ilert/ilert-kube-agent:latest"
+          imagePullPolicy: Always
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PORT
+              value: "9092"
+            - name: ILERT_API_KEY
+              value: "il1api0221093881c8650642f98cc2d552af07fec52b21f214aa"
+            - name: TOGGLE
+              value: "18"
+          ports:
+            - containerPort: 9092
+              name: http-metrics
+          resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 0m
+              memory: 32Mi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 9092
+              scheme: HTTP
+            initialDelaySeconds: 15
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 9092
+              scheme: HTTP
+            initialDelaySeconds: 15
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ilert-kube-agent
+  namespace: kube-system
+  labels:
+    app: ilert-kube-agent
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ilert-kube-agent
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "metrics.k8s.io"
+    resources:
+      - nodes
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - pods/logs
+    verbs:
+      - get
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - get
+      - update
+    resourceNames:
+      - "ilert-kube-agent"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ilert-kube-agent
+subjects:
+  - kind: ServiceAccount
+    name: ilert-kube-agent
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: ilert-kube-agent
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ilert-kube-agent-psp
+  labels:
+    app: ilert-kube-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ilert-kube-agent-psp
+subjects:
+  - kind: ServiceAccount
+    name: ilert-kube-agent
+    namespace: kube-system
