@@ -4,12 +4,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/iLert/ilert-kube-agent/pkg/apis/incident"
 )
 
 // SchemeGroupVersion Define your schema name and the version
 var SchemeGroupVersion = schema.GroupVersion{
-	Group:   "ilert.com",
+	Group:   incident.GroupName,
 	Version: "v1",
+}
+
+// Kind takes an unqualified kind and returns back a Group qualified GroupKind
+func Kind(kind string) schema.GroupKind {
+	return SchemeGroupVersion.WithKind(kind).GroupKind()
 }
 
 var (
@@ -34,21 +41,12 @@ func Resource(resource string) schema.GroupResource {
 
 // Adds the list of known types to the given scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(
-		SchemeGroupVersion,
+	scheme.AddKnownTypes(SchemeGroupVersion,
 		&Incident{},
 		&IncidentList{},
 	)
 
-	scheme.AddKnownTypes(
-		SchemeGroupVersion,
-		&metav1.Status{},
-	)
-
-	metav1.AddToGroupVersion(
-		scheme,
-		SchemeGroupVersion,
-	)
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 
 	return nil
 }
