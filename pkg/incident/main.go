@@ -35,6 +35,7 @@ func CreateEvent(ilertAPIKey string, incidentKey string, summary string, details
 
 	output, err := ilertClient.CreateEvent(&ilert.CreateEventInput{
 		Event: event,
+		// URL:   utils.String(fmt.Sprintf("https://api.ilert.com/api/v1/events/kubernetes/%s", ilertAPIKey)),
 	})
 
 	if err != nil {

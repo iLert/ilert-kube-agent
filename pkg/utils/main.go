@@ -42,6 +42,11 @@ func Int64(v int64) *int64 {
 	return &v
 }
 
+// String returns a pointer to the string value passed in.
+func String(v string) *string {
+	return &v
+}
+
 // StringContains checks if string contains in slice
 func StringContains(s []string, e string) bool {
 	for _, a := range s {
