@@ -2,6 +2,7 @@
 
 [![Build Status](https://github.com/iLert/ilert-kube-agent/workflows/docker-release/badge.svg)](https://github.com/iLert/ilert-kube-agent/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/iLert/ilert-kube-agent)](https://goreportcard.com/report/github.com/iLert/ilert-kube-agent) [![GoDoc](https://godoc.org/github.com/iLert/ilert-kube-agent?status.svg)](https://godoc.org/github.com/iLert/ilert-kube-agent)
+[![Docker Pulls](https://img.shields.io/docker/pulls/ilert/ilert-kube-agent.svg?maxAge=604800)](https://hub.docker.com/r/ilert/ilert-kube-agent)
 
 ilert-kube-agent is a service that listens to the Kubernetes API
 server and generates incidents about the health state of the pods and the nodes. (See examples in
