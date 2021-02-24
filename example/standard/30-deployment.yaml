@@ -19,7 +19,7 @@ spec:
         prometheus.io/port: "9092"
         prometheus.io/scrape: "true"
     spec:
-      priorityClassName: system-node-critical
+      priorityClassName: system-cluster-critical
       serviceAccountName: ilert-kube-agent
       containers:
         - name: ilert-kube-agent
