@@ -1,0 +1,68 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ilert-kube-agent
+  namespace: kube-system
+  labels:
+    app: ilert-kube-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ilert-kube-agent
+  template:
+    metadata:
+      labels:
+        app: ilert-kube-agent
+      annotations:
+        prometheus.io/port: "9092"
+        prometheus.io/scrape: "true"
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccountName: ilert-kube-agent
+      containers:
+        - name: ilert-kube-agent
+          image: "ilert/ilert-kube-agent:latest"
+          imagePullPolicy: Always
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PORT
+              value: "9092"
+            - name: ILERT_API_KEY
+              value: "<YOUR KEY HERE>"
+            - name: LOG_LEVEL
+              value: "info"
+          ports:
+            - containerPort: 9092
+              name: http-metrics
+          resources:
+            limits:
+              cpu: 20m
+              memory: 64Mi
+            requests:
+              cpu: 0m
+              memory: 32Mi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 9092
+              scheme: HTTP
+            initialDelaySeconds: 15
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 9092
+              scheme: HTTP
+            initialDelaySeconds: 15
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5

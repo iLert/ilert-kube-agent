@@ -1,0 +1,82 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ilert-kube-agent
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "metrics.k8s.io"
+    resources:
+      - nodes
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - pods/logs
+    verbs:
+      - get
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - get
+      - update
+    resourceNames:
+      - "ilert-kube-agent"
+  - apiGroups:
+      - "ilert.com"
+    resources:
+      - incidents
+    verbs:
+      - create
+      - update
+      - get
+      - delete
+      - list
+      - watch
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ilert-kube-agent
+subjects:
+  - kind: ServiceAccount
+    name: ilert-kube-agent
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: ilert-kube-agent
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ilert-kube-agent-psp
+  labels:
+    app: ilert-kube-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ilert-kube-agent-psp
+subjects:
+  - kind: ServiceAccount
+    name: ilert-kube-agent
+    namespace: kube-system
