@@ -42,6 +42,7 @@ func Start(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, a
 	}
 	if cfg.EnableNodeAlarms {
 		go startNodeInformer(kubeClient, agentKubeClient, cfg)
+		go startNodeChecker(kubeClient, metricsClient, agentKubeClient, cfg)
 	}
 }
 
@@ -50,6 +51,7 @@ func Stop() {
 	log.Info().Msg("Stop watcher")
 
 	stopPodInformer()
-	stopNodeInformer()
 	stopPodMetricsChecker()
+	stopNodeInformer()
+	stopNodeMetricsChecker()
 }

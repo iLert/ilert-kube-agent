@@ -23,3 +23,15 @@ func getNodeDetails(kubeClient *kubernetes.Clientset, node *api.Node) string {
 
 	return details
 }
+
+func getNodeDetailsWithUsageLimit(kubeClient *kubernetes.Clientset, node *api.Node, usage string, limit string) string {
+	details := getNodeDetails(kubeClient, node)
+
+	if usage != "" {
+		details += fmt.Sprintf("\nUsage: %s", usage)
+	}
+	if limit != "" {
+		details += fmt.Sprintf("\nLimit: %s", limit)
+	}
+	return details
+}

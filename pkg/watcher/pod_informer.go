@@ -33,40 +33,29 @@ func startPodInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentcl
 				if containerStatus.State.Terminated != nil &&
 					utils.StringContains(containerTerminatedReasons, containerStatus.State.Terminated.Reason) &&
 					cfg.EnablePodTerminateAlarms && incidentRef == nil {
-					incidentID := incident.CreateEvent(
-						cfg.APIKey,
-						podKey,
-						fmt.Sprintf("Pod %s/%s terminated - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Terminated.Reason),
-						getPodDetailsWithStatus(kubeClient, pod, &containerStatus),
-						ilert.EventTypes.Alert,
-						cfg.PodAlarmIncidentPriority)
-					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID)
+					summary := fmt.Sprintf("Pod %s/%s terminated - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Terminated.Reason)
+					details := getPodDetailsWithStatus(kubeClient, pod, &containerStatus)
+					incidentID := incident.CreateEvent(cfg.APIKey, podKey, summary, details, ilert.EventTypes.Alert, cfg.PodAlarmIncidentPriority)
+					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
 					break
 				}
 
 				if containerStatus.State.Waiting != nil &&
 					utils.StringContains(containerWaitingReasons, containerStatus.State.Waiting.Reason) &&
 					cfg.EnablePodWaitingAlarms && incidentRef == nil {
-					incidentID := incident.CreateEvent(
-						cfg.APIKey,
-						podKey,
-						fmt.Sprintf("Pod %s/%s waiting - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Waiting.Reason),
-						getPodDetailsWithStatus(kubeClient, pod, &containerStatus),
-						ilert.EventTypes.Alert,
-						cfg.PodAlarmIncidentPriority)
-					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID)
+					summary := fmt.Sprintf("Pod %s/%s waiting - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Waiting.Reason)
+					details := getPodDetailsWithStatus(kubeClient, pod, &containerStatus)
+					incidentID := incident.CreateEvent(cfg.APIKey, podKey, summary, details, ilert.EventTypes.Alert, cfg.PodAlarmIncidentPriority)
+					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
 					break
 				}
 
 				if cfg.EnablePodRestartsAlarms && containerStatus.RestartCount >= cfg.PodRestartThreshold && incidentRef == nil {
-					incidentID := incident.CreateEvent(
-						cfg.APIKey,
-						podKey,
-						fmt.Sprintf("Pod %s/%s restarts threshold reached: %d", pod.GetNamespace(), pod.GetName(), containerStatus.RestartCount),
-						getPodDetailsWithStatus(kubeClient, pod, &containerStatus),
-						ilert.EventTypes.Alert,
-						cfg.PodRestartsAlarmIncidentPriority)
-					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID)
+					summary := fmt.Sprintf("Pod %s/%s restarts threshold reached: %d", pod.GetNamespace(), pod.GetName(), containerStatus.RestartCount)
+					details := getPodDetailsWithStatus(kubeClient, pod, &containerStatus)
+					incidentID := incident.CreateEvent(cfg.APIKey, podKey, summary, details, ilert.EventTypes.Alert, cfg.PodRestartsAlarmIncidentPriority)
+					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
+					break
 				}
 			}
 		},

@@ -15,7 +15,9 @@ type Incident struct {
 
 // IncidentSpec custom spec definition
 type IncidentSpec struct {
-	ID int64 `json:"id,omitempty"`
+	ID      int64  `json:"id,omitempty"`
+	Summary string `json:"summary,omitempty"`
+	Details string `json:"details,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

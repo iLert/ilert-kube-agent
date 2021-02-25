@@ -22,6 +22,10 @@ spec:
         spec:
           required: ["id"]
           properties:
-            replicas:
+            id:
               type: "integer"
               minimum: 0
+            summary:
+              type: "string"
+            details:
+              type: "string"
