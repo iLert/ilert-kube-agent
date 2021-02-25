@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/dustin/go-humanize"
 	"github.com/robfig/cron/v3"
@@ -65,30 +66,36 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 						Msg("Could not find container for metrics data")
 					continue
 				}
-				var cpuUsage, memoryUsage int64
-				cpuUsage, ok := metricsContainer.Usage.Cpu().AsInt64()
-				if !ok {
+				var memoryUsage int64
+				var cpuUsage, cpuLimit float64
+				cpuUsageDec := metricsContainer.Usage.Cpu().AsDec().String()
+				cpuUsage, err = strconv.ParseFloat(cpuUsageDec, 64)
+				if err != nil {
 					cpuUsage = 0
 				}
-				memoryUsage, ok = metricsContainer.Usage.Memory().AsInt64()
+				memoryUsage, ok := metricsContainer.Usage.Memory().AsInt64()
 				if !ok {
 					memoryUsage = 0
 				}
 				if cpuUsage > 0 && container.Resources.Limits.Cpu() != nil {
-					cpuLimit, ok := container.Resources.Limits.Cpu().AsInt64()
-					if ok && cpuLimit > 0 {
+					cpuLimitDec := container.Resources.Limits.Cpu().AsDec().String()
+					cpuLimit, err = strconv.ParseFloat(cpuLimitDec, 64)
+					if err != nil {
+						cpuLimit = 0
+					}
+					if cpuLimit > 0 {
 						log.Debug().
 							Str("pod", pod.GetName()).
 							Str("namespace", pod.GetNamespace()).
 							Str("container", container.Name).
-							Int64("limit", cpuLimit).
-							Int64("usage", cpuUsage).
+							Float64("limit", cpuLimit).
+							Float64("usage", cpuUsage).
 							Msg("Checking CPU limit")
-						if cpuUsage >= (int64(cfg.ResourcesThreshold) * (cpuLimit / 100)) {
+						if cpuUsage >= (float64(cfg.ResourcesThreshold) * (cpuLimit / 100)) {
 							healthy = false
 							if incidentRef == nil {
 								summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.ResourcesThreshold)
-								details := getPodDetailsWithUsageLimit(kubeClient, &pod, fmt.Sprintf("%d CPU", cpuUsage), fmt.Sprintf("%d CPU", cpuLimit))
+								details := getPodDetailsWithUsageLimit(kubeClient, &pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 								incidentID := incident.CreateEvent(cfg.APIKey, podKey, summary, details, ilert.EventTypes.Alert, cfg.ResourcesAlarmIncidentPriority)
 								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
 							}

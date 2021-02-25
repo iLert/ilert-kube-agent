@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/dustin/go-humanize"
 	"github.com/robfig/cron/v3"
@@ -53,28 +54,34 @@ func checkNodes(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clients
 			}
 
 			healthy := true
-			var cpuUsage, memoryUsage int64
-			cpuUsage, ok := nodeMetrics.Usage.Cpu().AsInt64()
-			if !ok {
+			var memoryUsage int64
+			var cpuUsage, cpuLimit float64
+			cpuUsageDec := nodeMetrics.Usage.Cpu().AsDec().String()
+			cpuUsage, err = strconv.ParseFloat(cpuUsageDec, 64)
+			if err != nil {
 				cpuUsage = 0
 			}
-			memoryUsage, ok = nodeMetrics.Usage.Memory().AsInt64()
+			memoryUsage, ok := nodeMetrics.Usage.Memory().AsInt64()
 			if !ok {
 				memoryUsage = 0
 			}
 
-			cpuLimit, ok := node.Status.Capacity.Cpu().AsInt64()
-			if ok && cpuLimit > 0 {
+			cpuLimitDec := node.Status.Capacity.Cpu().AsDec().String()
+			cpuLimit, err = strconv.ParseFloat(cpuLimitDec, 64)
+			if err != nil {
+				cpuLimit = 0
+			}
+			if ok && cpuLimit > 0 && cpuUsage > 0 {
 				log.Debug().
 					Str("node", node.GetName()).
-					Int64("limit", cpuLimit).
-					Int64("usage", cpuUsage).
+					Float64("limit", cpuLimit).
+					Float64("usage", cpuUsage).
 					Msg("Checking CPU limit")
-				if cpuUsage >= (int64(cfg.ResourcesThreshold) * (cpuLimit / 100)) {
+				if cpuUsage >= (float64(cfg.ResourcesThreshold) * (cpuLimit / 100)) {
 					healthy = false
 					if incidentRef == nil {
 						summary := fmt.Sprintf("Node %s CPU limit reached > %d%%", node.GetName(), cfg.ResourcesThreshold)
-						details := getNodeDetailsWithUsageLimit(kubeClient, &node, fmt.Sprintf("%d CPU", cpuUsage), fmt.Sprintf("%d CPU", cpuLimit))
+						details := getNodeDetailsWithUsageLimit(kubeClient, &node, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 						incidentID := incident.CreateEvent(cfg.APIKey, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.ResourcesAlarmIncidentPriority)
 						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Namespace, incidentID, summary, details)
 					}
@@ -82,7 +89,7 @@ func checkNodes(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clients
 			}
 
 			memoryLimit, ok := node.Status.Capacity.Memory().AsInt64()
-			if ok && memoryLimit > 0 {
+			if ok && memoryLimit > 0 && memoryUsage > 0 {
 				log.Debug().
 					Str("node", node.GetName()).
 					Int64("limit", memoryLimit).
