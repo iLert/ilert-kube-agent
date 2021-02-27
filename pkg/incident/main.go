@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cbroglie/mustache"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -12,13 +13,22 @@ import (
 	shared "github.com/iLert/ilert-kube-agent"
 	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
 	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
+	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/utils"
 )
 
 var ilertClient *ilert.Client
 
 // CreateEvent creates an incident event
-func CreateEvent(ilertAPIKey string, incidentKey string, summary string, details string, eventType string, priority string) *int64 {
+func CreateEvent(
+	cfg *config.Config,
+	mustacheValues map[string]string,
+	incidentKey string,
+	summary string,
+	details string,
+	eventType string,
+	priority string,
+) *int64 {
 	if ilertClient == nil {
 		ilertClient = ilert.NewClient(ilert.WithUserAgent(fmt.Sprintf("ilert-kube-agent/%s", shared.Version)))
 	}
@@ -28,9 +38,29 @@ func CreateEvent(ilertAPIKey string, incidentKey string, summary string, details
 		Summary:     summary,
 		Details:     details,
 		EventType:   eventType,
-		APIKey:      ilertAPIKey,
+		APIKey:      cfg.Settings.APIKey,
 		Priority:    priority,
 	}
+	links := make([]ilert.IncidentLink, 0)
+	if cfg.Links.Metrics != "" {
+		url, err := mustache.Render(cfg.Links.Metrics, mustacheValues)
+		if err == nil && url != "" {
+			links = append(links, ilert.IncidentLink{
+				Href: url,
+				Text: "Metrics",
+			})
+		}
+	}
+	if cfg.Links.Logs != "" {
+		url, err := mustache.Render(cfg.Links.Logs, mustacheValues)
+		if err == nil && url != "" {
+			links = append(links, ilert.IncidentLink{
+				Href: url,
+				Text: "Logs",
+			})
+		}
+	}
+	event.Links = links
 	log.Debug().Interface("event", event).Msg("Creating incident event")
 
 	output, err := ilertClient.CreateEvent(&ilert.CreateEventInput{

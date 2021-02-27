@@ -35,3 +35,10 @@ func getNodeDetailsWithUsageLimit(kubeClient *kubernetes.Clientset, node *api.No
 	}
 	return details
 }
+
+func getNodeMustacheValues(node *api.Node) map[string]string {
+	return map[string]string{
+		"node_name":    node.GetName(),
+		"cluster_name": node.GetClusterName(),
+	}
+}

@@ -23,7 +23,7 @@ spec:
       serviceAccountName: ilert-kube-agent
       containers:
         - name: ilert-kube-agent
-          image: "ilert/ilert-kube-agent:latest"
+          image: "ilert/ilert-kube-agent:v1.2.1"
           imagePullPolicy: Always
           env:
             - name: NAMESPACE

@@ -78,3 +78,11 @@ func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string
 	return buf.String()
 
 }
+
+func getPodMustacheValues(pod *api.Pod) map[string]string {
+	return map[string]string{
+		"pod_name":      pod.GetName(),
+		"pod_namespace": pod.GetNamespace(),
+		"cluster_name":  pod.GetClusterName(),
+	}
+}

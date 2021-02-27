@@ -32,7 +32,7 @@ func startNodeInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentc
 			if node.Status.Phase == api.NodeTerminated && incidentRef == nil {
 				summary := fmt.Sprintf("Node %s terminated", node.GetName())
 				details := getNodeDetails(kubeClient, node)
-				incidentID := incident.CreateEvent(cfg.Settings.APIKey, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Priority)
+				incidentID := incident.CreateEvent(cfg, getNodeMustacheValues(node), nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Priority)
 				incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details)
 			}
 		},
