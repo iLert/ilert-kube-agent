@@ -44,6 +44,7 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 	}
 
 	if cfg.Alarms.Pods.Resources.Enabled {
+		log.Debug().Msg("Running pods resource check")
 		for _, pod := range pods.Items {
 			podKey := getPodKey(&pod)
 			incidentRef := incident.GetIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())

@@ -1,3 +1,7 @@
+## v1.2.3 / 2021-02-27
+
+- [FIX] Fix watcher logging
+
 ## v1.2.2 / 2021-02-27
 
 - [ENHANCEMENT] Add flags for incident links

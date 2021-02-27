@@ -42,8 +42,9 @@ func checkNodes(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clients
 		log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
 	}
 
-	for _, node := range nodes.Items {
-		if cfg.Alarms.Nodes.Resources.Enabled {
+	if cfg.Alarms.Nodes.Resources.Enabled {
+		log.Debug().Msg("Running nodes resource check")
+		for _, node := range nodes.Items {
 			nodeKey := getNodeKey(&node)
 			incidentRef := incident.GetIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace)
 

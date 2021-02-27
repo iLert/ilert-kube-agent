@@ -25,7 +25,7 @@ func startPodInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentcl
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 			pod := newObj.(*api.Pod)
-			log.Debug().Interface("pod", pod.Name).Msg("Update Pod")
+			log.Debug().Interface("pod", pod.GetName()).Msg("Update Pod")
 			podKey := getPodKey(pod)
 			incidentRef := incident.GetIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
 

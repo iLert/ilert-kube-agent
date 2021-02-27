@@ -27,7 +27,7 @@ func startNodeInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentc
 			nodeKey := getNodeKey(node)
 
 			incidentRef := incident.GetIncidentRef(agentKubeClient, nodeKey, cfg.Settings.Namespace)
-			log.Debug().Interface("node", node).Msg("Update Node")
+			log.Debug().Interface("node_name", node.GetName()).Msg("Update Node")
 
 			if node.Status.Phase == api.NodeTerminated && incidentRef == nil {
 				summary := fmt.Sprintf("Node %s terminated", node.GetName())
