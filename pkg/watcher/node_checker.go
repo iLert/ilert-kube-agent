@@ -21,7 +21,7 @@ var nodeCheckerCron *cron.Cron
 
 func startNodeChecker(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	nodeCheckerCron = cron.New()
-	nodeCheckerCron.AddFunc(fmt.Sprintf("@every %ds", cfg.ResourcesCheckerInterval), func() {
+	nodeCheckerCron.AddFunc(cfg.Settings.CheckInterval, func() {
 		checkNodes(kubeClient, metricsClient, agentKubeClient, cfg)
 	})
 
@@ -43,9 +43,9 @@ func checkNodes(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clients
 	}
 
 	for _, node := range nodes.Items {
-		if cfg.EnableResourcesAlarms {
+		if cfg.Alarms.Nodes.Resources.Enabled {
 			nodeKey := getNodeKey(&node)
-			incidentRef := incident.GetIncidentRef(agentKubeClient, node.GetName(), cfg.Namespace)
+			incidentRef := incident.GetIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace)
 
 			nodeMetrics, err := metricsClient.MetricsV1beta1().NodeMetricses().Get(node.GetName(), metav1.GetOptions{})
 			if err != nil {
@@ -77,13 +77,13 @@ func checkNodes(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clients
 					Float64("limit", cpuLimit).
 					Float64("usage", cpuUsage).
 					Msg("Checking CPU limit")
-				if cpuUsage >= (float64(cfg.ResourcesThreshold) * (cpuLimit / 100)) {
+				if cpuUsage >= (float64(cfg.Alarms.Nodes.Resources.Threshold) * (cpuLimit / 100)) {
 					healthy = false
 					if incidentRef == nil {
-						summary := fmt.Sprintf("Node %s CPU limit reached > %d%%", node.GetName(), cfg.ResourcesThreshold)
+						summary := fmt.Sprintf("Node %s CPU limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.Threshold)
 						details := getNodeDetailsWithUsageLimit(kubeClient, &node, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
-						incidentID := incident.CreateEvent(cfg.APIKey, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.ResourcesAlarmIncidentPriority)
-						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Namespace, incidentID, summary, details)
+						incidentID := incident.CreateEvent(cfg.Settings.APIKey, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Priority)
+						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details)
 					}
 				}
 			}
@@ -95,20 +95,20 @@ func checkNodes(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clients
 					Int64("limit", memoryLimit).
 					Int64("usage", memoryUsage).
 					Msg("Checking memory limit")
-				if memoryUsage >= (int64(cfg.ResourcesThreshold) * (memoryLimit / 100)) {
+				if memoryUsage >= (int64(cfg.Alarms.Nodes.Resources.Threshold) * (memoryLimit / 100)) {
 					healthy = false
 					if incidentRef == nil {
-						summary := fmt.Sprintf("Node %s memory limit reached > %d%%", node.GetName(), cfg.ResourcesThreshold)
+						summary := fmt.Sprintf("Node %s memory limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.Threshold)
 						details := getNodeDetailsWithUsageLimit(kubeClient, &node, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
-						incidentID := incident.CreateEvent(cfg.APIKey, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.ResourcesAlarmIncidentPriority)
-						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Namespace, incidentID, summary, details)
+						incidentID := incident.CreateEvent(cfg.Settings.APIKey, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Priority)
+						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details)
 					}
 				}
 			}
 
 			if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 {
-				incident.CreateEvent(cfg.APIKey, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, cfg.ResourcesAlarmIncidentPriority)
-				incident.DeleteIncidentRef(agentKubeClient, node.GetName(), cfg.Namespace)
+				incident.CreateEvent(cfg.Settings.APIKey, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, cfg.Alarms.Nodes.Resources.Priority)
+				incident.DeleteIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace)
 			}
 		}
 	}

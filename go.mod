@@ -12,6 +12,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/pflag v1.0.5
+	github.com/spf13/viper v1.7.1
 	k8s.io/api v0.17.7
 	k8s.io/apimachinery v0.17.7
 	k8s.io/client-go v0.17.7

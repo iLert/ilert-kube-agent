@@ -22,7 +22,7 @@ var podCheckerCron *cron.Cron
 
 func startPodChecker(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	podCheckerCron = cron.New()
-	podCheckerCron.AddFunc(fmt.Sprintf("@every %ds", cfg.ResourcesCheckerInterval), func() {
+	podCheckerCron.AddFunc(cfg.Settings.CheckInterval, func() {
 		checkPods(kubeClient, metricsClient, agentKubeClient, cfg)
 	})
 
@@ -43,8 +43,8 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 		log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
 	}
 
-	for _, pod := range pods.Items {
-		if cfg.EnableResourcesAlarms {
+	if cfg.Alarms.Pods.Resources.Enabled {
+		for _, pod := range pods.Items {
 			podKey := getPodKey(&pod)
 			incidentRef := incident.GetIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
 
@@ -91,12 +91,12 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 							Float64("limit", cpuLimit).
 							Float64("usage", cpuUsage).
 							Msg("Checking CPU limit")
-						if cpuUsage >= (float64(cfg.ResourcesThreshold) * (cpuLimit / 100)) {
+						if cpuUsage >= (float64(cfg.Alarms.Pods.Resources.Threshold) * (cpuLimit / 100)) {
 							healthy = false
 							if incidentRef == nil {
-								summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.ResourcesThreshold)
+								summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Threshold)
 								details := getPodDetailsWithUsageLimit(kubeClient, &pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
-								incidentID := incident.CreateEvent(cfg.APIKey, podKey, summary, details, ilert.EventTypes.Alert, cfg.ResourcesAlarmIncidentPriority)
+								incidentID := incident.CreateEvent(cfg.Settings.APIKey, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Priority)
 								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
 							}
 						}
@@ -112,12 +112,12 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 							Int64("limit", memoryLimit).
 							Int64("usage", memoryUsage).
 							Msg("Checking memory limit")
-						if memoryUsage >= (int64(cfg.ResourcesThreshold) * (memoryLimit / 100)) {
+						if memoryUsage >= (int64(cfg.Alarms.Pods.Resources.Threshold) * (memoryLimit / 100)) {
 							healthy = false
 							if incidentRef == nil {
-								summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.ResourcesThreshold)
+								summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Threshold)
 								details := getPodDetailsWithUsageLimit(kubeClient, &pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
-								incidentID := incident.CreateEvent(cfg.APIKey, podKey, summary, details, ilert.EventTypes.Alert, cfg.ResourcesAlarmIncidentPriority)
+								incidentID := incident.CreateEvent(cfg.Settings.APIKey, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Priority)
 								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
 							}
 						}
@@ -125,7 +125,7 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 				}
 			}
 			if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 {
-				incident.CreateEvent(cfg.APIKey, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, cfg.ResourcesAlarmIncidentPriority)
+				incident.CreateEvent(cfg.Settings.APIKey, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, cfg.Alarms.Pods.Resources.Priority)
 				incident.DeleteIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
 			}
 		}

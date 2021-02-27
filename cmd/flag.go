@@ -2,137 +2,136 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/iLert/ilert-kube-agent/pkg/config"
+	"github.com/iLert/ilert-kube-agent/pkg/logger"
 	"github.com/iLert/ilert-kube-agent/pkg/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 var (
-	kubeconfig                       string
-	master                           string
-	port                             string
-	namespace                        string
-	logLevel                         string
-	electionID                       string
-	ilertAPIKey                      string
-	enablePodAlarms                  bool
-	enablePodTerminateAlarms         bool
-	enablePodWaitingAlarms           bool
-	enablePodRestartsAlarms          bool
-	enableNodeAlarms                 bool
-	enableResourcesAlarms            bool
-	podRestartThreshold              int32
-	podAlarmIncidentPriority         string
-	podRestartsAlarmIncidentPriority string
-	nodeAlarmIncidentPriority        string
-	resourcesAlarmIncidentPriority   string
-	resourcesCheckerInterval         int32
-	resourcesThreshold               int32
+	help    bool
+	cfgFile string
 )
 
 func parseAndValidateFlags() *config.Config {
-	flags := pflag.NewFlagSet("", pflag.ExitOnError)
 
-	flags.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
-	flags.StringVar(&master, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	flags.StringVar(&namespace, "namespace", "kube-system", "Namespace in which agent run.")
-	flags.StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error, fatal).")
-	flags.StringVar(&electionID, "election-id", "ilert-kube-agent", "The lease lock resource name")
-	flags.StringVar(&port, "port", "9092", "The metrics server port")
-	flags.StringVar(&ilertAPIKey, "ilert-api-key", "", "The iLert alert source api key")
-	flags.BoolVar(&enablePodAlarms, "enable-pod-alarms", true, "Enable pod alarms")
-	flags.BoolVar(&enablePodTerminateAlarms, "enable-pod-terminate-alarms", true, "Enable pod terminate alarms")
-	flags.BoolVar(&enablePodWaitingAlarms, "enable-pod-waiting-alarms", true, "Enable pod waiting alarms")
-	flags.BoolVar(&enablePodRestartsAlarms, "enable-pod-restarts-alarms", true, "Enable pod restarts alarms")
-	flags.BoolVar(&enableNodeAlarms, "enable-node-alarms", true, "Enable node alarms")
-	flags.BoolVar(&enableResourcesAlarms, "enable-resources-alarms", true, "Enable pod/node resources alarms")
-	flags.Int32Var(&podRestartThreshold, "pod-restart-threshold", 10, "Pod restart threshold to alarm")
-	flags.StringVar(&podAlarmIncidentPriority, "pod-alarm-incident-priority", "HIGH", "The pod alarm incident priority")
-	flags.StringVar(&podRestartsAlarmIncidentPriority, "pod-restart-alarm-incident-priority", "LOW", "The pod restarts alarm incident priority")
-	flags.StringVar(&nodeAlarmIncidentPriority, "node-alarm-incident-priority", "HIGH", "The node alarm incident priority")
-	flags.StringVar(&resourcesAlarmIncidentPriority, "resources-alarm-incident-priority", "HIGH", "The node alarm incident priority")
-	flags.Int32Var(&resourcesCheckerInterval, "resources-checker-interval", 30, "The resources checker interval in seconds")
-	flags.Int32Var(&resourcesThreshold, "resources-threshold", 90, "The resources persentage threshold from 10 to 100")
+	flag.BoolVar(&help, "help", false, "Print this help.")
+	flag.StringVar(&cfgFile, "config", "", "Config file")
 
-	flags.Set("logtostderr", "true")
-	flags.AddGoFlagSet(flag.CommandLine)
-	flags.Parse(os.Args)
-	flag.CommandLine.Parse([]string{})
+	flag.String("settings.kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	flag.String("settings.master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	flag.String("settings.namespace", "kube-system", "Namespace in which agent run.")
+	flag.String("settings.log.level", "info", "Log level (debug, info, warn, error, fatal).")
+	flag.Bool("settings.log.json", false, "Enable json format log")
+	flag.String("settings.electionID", "ilert-kube-agent", "The lease lock resource name")
+	flag.Int("settings.port", 9092, "The metrics server port")
+	flag.String("settings.apiKey", "", "(REQUIRED) The iLert alert source api key")
+	flag.String("settings.checkInterval", "15s", "The evaluation check interval e.g. resources check")
 
-	pflag.VisitAll(func(flag *pflag.Flag) {
-		log.Info().Str("name", flag.Name).Str("value", flag.Value.String()).Msg("Flag")
-	})
+	flag.Bool("alarms.pods.enabled", true, "Enable pod alarms")
+	flag.Bool("alarms.pods.terminate.enabled", true, "Enable pod terminate alarms")
+	flag.String("alarms.pods.terminate.priority", "HIGH", "The pod terminate alarm incident priority")
+	flag.Bool("alarms.pods.waiting.enabled", true, "Enable pod waiting alarms")
+	flag.String("alarms.pods.waiting.priority", "LOW", "The pod waiting alarm incident priority")
+	flag.Bool("alarms.pods.restarts.enabled", true, "Enable pod restarts alarms")
+	flag.String("alarms.pods.restarts.priority", "LOW", "The pod waiting alarm incident priority")
+	flag.Int("alarms.pods.restarts.threshold", 10, "Pod restart threshold to alarm")
+	flag.Bool("alarms.pods.resources.enabled", true, "Enable pod resources alarms")
+	flag.String("alarms.pods.resources.priority", "LOW", "The pod resources alarm incident priority")
+	flag.Int("alarms.pods.resources.threshold", 90, "The pod resources percentage threshold from 1 to 100")
+
+	flag.Bool("alarms.nodes.enabled", true, "Enable node alarms")
+	flag.Bool("alarms.nodes.terminate.enabled", true, "Enable node terminate alarms")
+	flag.String("alarms.nodes.terminate.priority", "HIGH", "The node terminate alarm incident priority")
+	flag.Bool("alarms.nodes.resources.enabled", true, "Enable node resources alarms")
+	flag.String("alarms.nodes.resources.priority", "LOW", "The node resources alarm incident priority")
+	flag.Int("alarms.nodes.resources.threshold", 90, "The node resources percentage threshold from 1 to 100")
+
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.Parse()
+
+	viper.RegisterAlias("settings.api-key", "settings.apiKey")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+	viper.SetEnvPrefix("ilert")
+	viper.AutomaticEnv()
+
+	err := viper.BindPFlags(pflag.CommandLine)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Unable to read config")
+	}
+
+	if help {
+		pflag.Usage()
+		os.Exit(0)
+	}
+
+	if cfgFile != "" {
+		log.Debug().Str("file", cfgFile).Msg("Reading config file")
+		viper.SetConfigFile(cfgFile)
+		err := viper.ReadInConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("Unable to read config")
+		}
+	}
+
+	cfg := &config.Config{}
+	err = viper.Unmarshal(cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Unable to decode config")
+	}
+
+	logger.Init(cfg.Settings.Log)
+	log.Info().Interface("config", cfg).Msg("Global config")
 
 	ilertAPIKeyEnv := utils.GetEnv("ILERT_API_KEY", "")
 	if ilertAPIKeyEnv != "" {
-		ilertAPIKey = ilertAPIKeyEnv
+		cfg.Settings.APIKey = ilertAPIKeyEnv
 	}
 
-	if electionID == "" {
+	if cfg.Settings.ElectionID == "" {
 		log.Fatal().Msg("Election ID is required.")
 	}
 
-	namespaceEnv := utils.GetEnv("NAMESPACE", "")
-	if namespaceEnv != "" {
-		namespace = namespaceEnv
-	}
-	if namespace == "" {
+	if cfg.Settings.Namespace == "" {
 		log.Fatal().Msg("Namespace is required.")
 	}
 
-	if ilertAPIKey == "" {
-		log.Fatal().Msg("iLert api key is required.")
+	if cfg.Settings.APIKey == "" {
+		log.Fatal().Msg("iLert api key is required. Use --settings.apiKey flag or ILERT_API_KEY env var")
 	}
 
-	logLevelEnv := utils.GetEnv("LOG_LEVEL", "")
-	if logLevelEnv != "" {
-		logLevel = logLevelEnv
-	}
-	if logLevel != "debug" && logLevel != "info" && logLevel != "warn" && logLevel != "error" && logLevel != "fatal" {
-		log.Fatal().Msg("Invalid --log-level flag value.")
+	if cfg.Settings.Log.Level != "debug" && cfg.Settings.Log.Level != "info" && cfg.Settings.Log.Level != "warn" && cfg.Settings.Log.Level != "error" && cfg.Settings.Log.Level != "fatal" {
+		log.Fatal().Msg("Invalid --settings.log.level flag value or config.")
 	}
 
-	if podAlarmIncidentPriority != "HIGH" && podAlarmIncidentPriority != "LOW" {
-		log.Fatal().Msg("Invalid --pod-alarm-incident-priority flag value.")
-	}
+	checkPriorityConfig(cfg.Alarms.Pods.Terminate.Priority, "--alarms.pods.terminate.priority")
+	checkPriorityConfig(cfg.Alarms.Pods.Waiting.Priority, "--alarms.pods.waiting.priority")
+	checkPriorityConfig(cfg.Alarms.Pods.Restarts.Priority, "--alarms.pods.restarts.priority")
+	checkPriorityConfig(cfg.Alarms.Pods.Resources.Priority, "--alarms.pods.resources.priority")
+	checkPriorityConfig(cfg.Alarms.Nodes.Terminate.Priority, "--alarms.nodes.terminate.priority")
+	checkPriorityConfig(cfg.Alarms.Nodes.Resources.Priority, "--alarms.nodes.resources.priority")
 
-	if podRestartsAlarmIncidentPriority != "HIGH" && podRestartsAlarmIncidentPriority != "LOW" {
-		log.Fatal().Msg("Invalid --pod-restart-alarm-incident-priority flag value.")
-	}
+	checkThresholdConfig(cfg.Alarms.Pods.Resources.Threshold, 1, 100, "--alarms.pods.resources.threshold")
+	checkThresholdConfig(cfg.Alarms.Pods.Restarts.Threshold, 1, 1000000, "--alarms.pods.restarts.threshold")
+	checkThresholdConfig(cfg.Alarms.Pods.Resources.Threshold, 1, 100, "--alarms.nodes.resources.threshold")
 
-	if nodeAlarmIncidentPriority != "HIGH" && nodeAlarmIncidentPriority != "LOW" {
-		log.Fatal().Msg("Invalid --node-alarm-incident-priority flag value.")
-	}
+	return cfg
+}
 
-	if resourcesAlarmIncidentPriority != "HIGH" && resourcesAlarmIncidentPriority != "LOW" {
-		log.Fatal().Msg("Invalid --resources-alarm-incident-priority flag value.")
+func checkPriorityConfig(priority string, flag string) {
+	if priority != "HIGH" && priority != "LOW" {
+		log.Fatal().Msg(fmt.Sprintf("Invalid %s flag value.", flag))
 	}
+}
 
-	if resourcesThreshold < 10 || resourcesThreshold > 100 {
-		log.Fatal().Msg("Invalid --resources-threshold flag value.")
-	}
-
-	return &config.Config{
-		Master:                           master,
-		KubeConfig:                       kubeconfig,
-		Namespace:                        namespace,
-		LogLevel:                         logLevel,
-		APIKey:                           ilertAPIKey,
-		EnablePodAlarms:                  enablePodAlarms,
-		EnablePodTerminateAlarms:         enablePodTerminateAlarms,
-		EnablePodWaitingAlarms:           enablePodWaitingAlarms,
-		EnablePodRestartsAlarms:          enablePodRestartsAlarms,
-		EnableNodeAlarms:                 enableNodeAlarms,
-		EnableResourcesAlarms:            enableResourcesAlarms,
-		PodRestartThreshold:              podRestartThreshold,
-		PodAlarmIncidentPriority:         podAlarmIncidentPriority,
-		PodRestartsAlarmIncidentPriority: podRestartsAlarmIncidentPriority,
-		NodeAlarmIncidentPriority:        nodeAlarmIncidentPriority,
-		ResourcesAlarmIncidentPriority:   resourcesAlarmIncidentPriority,
-		ResourcesCheckerInterval:         resourcesCheckerInterval,
-		ResourcesThreshold:               resourcesThreshold,
+func checkThresholdConfig(threshold int32, min int32, max int32, flag string) {
+	if threshold < min || threshold > max {
+		log.Fatal().Msg(fmt.Sprintf("Invalid %s flag value (min=%d max=%d).", flag, min, max))
 	}
 }

@@ -36,11 +36,11 @@ var containerTerminatedReasons = []string{Terminated, OOMKilled, Error, Containe
 func Start(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	log.Info().Msg("Start watcher")
 
-	if cfg.EnablePodAlarms {
+	if cfg.Alarms.Pods.Enabled {
 		go startPodInformer(kubeClient, agentKubeClient, cfg)
 		go startPodChecker(kubeClient, metricsClient, agentKubeClient, cfg)
 	}
-	if cfg.EnableNodeAlarms {
+	if cfg.Alarms.Nodes.Enabled {
 		go startNodeInformer(kubeClient, agentKubeClient, cfg)
 		go startNodeChecker(kubeClient, metricsClient, agentKubeClient, cfg)
 	}

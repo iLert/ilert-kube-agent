@@ -1,0 +1,84 @@
+settings:
+  ## (REQUIRED) The iLert alert source api key
+  # apiKey: <YOU-API-KEY>
+
+  ## Path to a kubeconfig. Only required if out-of-cluster.
+  # kubeconfig: "~/.kube/config"
+
+  ## The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.
+  # master: ""
+
+  ## Namespace in which agent run.
+  namespace: kube-systems
+
+  ## The lease lock resource name
+  electionID: ilert-kube-agent
+
+  ## The metrics server port
+  port: 9092
+
+  ## The evaluation check interval e.g. resources check
+  checkInterval: 30s
+
+  log:
+    ## Log level (debug, info, warn, error, fatal).
+    level: info
+    ## Enable json logs
+    json: false
+
+alarms:
+  pods:
+    ## Enables all pod alarms
+    enabled: false
+
+    terminate:
+      ## Enables terminate pod alarms
+      enabled: true
+      ## The pod terminate alarm incident priority
+      priority: HIGH
+
+    waiting:
+      ## Enables waiting pod alarms
+      enabled: true
+      ## The pod waiting alarm incident priority
+      priority: LOW
+
+    restarts:
+      ## Enables restarts pod alarms
+      enabled: true
+      ## The pod restarts alarm incident priority
+      priority: LOW
+      ## Pod restart threshold to alarm (min 1)
+      threshold: 10
+
+    resources:
+      ## Enables resources pod alarms
+      enabled: true
+      ## The pod resources alarm incident priority
+      priority: LOW
+      ## The pod resources percentage threshold from 1 to 100
+      threshold: 90
+
+  nodes:
+    ## Enables all pod alarms
+    enabled: true
+
+    terminate:
+      ## Enables terminate node alarms
+      enabled: true
+      ## The node terminate alarm incident priority
+      priority: HIGH
+
+    resources:
+      ## Enables resources node alarms
+      enabled: true
+      ## The node resources alarm incident priority
+      priority: LOW
+      ## The node resources percentage threshold from 1 to 100
+      threshold: 90
+
+links:
+  ## Metrics URL for the alarm-related incident. Your can use following mustache variables here: pod_namespace, pod_name, node_name
+  # metrics: "https://grafana.example.com/d/kubernetes/kubernetes-overview?var-Node=All&var-Pod={{pod_name}}"
+  ## Logs URL for the alarm-related incident. Your can use following mustache variables here: pod_namespace, pod_name, node_name
+  # logs: "https://grafana.example.com/explore?left=%5B%22now-1h%22,%22now%22,%22Loki%22,%7B%22expr%22:%22%7Binstance%3D%5C%22{{pod_name}}%5C%22,namespace%3D%5C%22{{pod_namespace}}%5C%22%7D%22%7D%5D"

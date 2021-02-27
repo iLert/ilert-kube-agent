@@ -10,19 +10,30 @@ import (
 	"k8s.io/klog/v2"
 
 	shared "github.com/iLert/ilert-kube-agent"
+	"github.com/iLert/ilert-kube-agent/pkg/config"
 )
 
 // Init initializes logs
-func Init(logLevel string) {
-	log.Logger = log.With().Caller().Logger().Output(zerolog.ConsoleWriter{
-		Out:        os.Stderr,
-		NoColor:    true,
-		PartsOrder: []string{"time", "message", "caller", "level"},
-		FormatLevel: func(i interface{}) string {
-			return strings.ToLower(fmt.Sprintf("level=%s", i))
-		},
-	})
-	switch logLevel {
+func Init(setting config.ConfigSettingsLog) {
+	if setting.JSON {
+		log.Logger = log.With().Caller().Logger().Output(zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			NoColor:    true,
+			PartsOrder: []string{"time", "message", "caller", "level"},
+			FormatLevel: func(i interface{}) string {
+				return strings.ToLower(fmt.Sprintf("level=%s", i))
+			},
+		})
+	} else {
+		log.Logger = log.Output(zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			PartsOrder: []string{"time", "message", "caller", "level"},
+			FormatLevel: func(i interface{}) string {
+				return strings.ToLower(fmt.Sprintf("level=%s", i))
+			},
+		})
+	}
+	switch setting.Level {
 	case "debug":
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	case "info":
