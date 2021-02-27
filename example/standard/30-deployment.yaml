@@ -33,8 +33,7 @@ spec:
             - name: PORT
               value: "9092"
             - name: ILERT_API_KEY
-              value: "<YOUR KEY HERE>"
-            - name: LOG_LEVEL
+            - name: ILERT_SETTINGS_LOG_LEVEL
               value: "info"
           ports:
             - containerPort: 9092
