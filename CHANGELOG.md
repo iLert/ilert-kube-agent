@@ -1,3 +1,7 @@
+## v1.2.4 / 2021-02-27
+
+- [FIX] Fix cron jobs
+
 ## v1.2.3 / 2021-02-27
 
 - [FIX] Fix watcher logging

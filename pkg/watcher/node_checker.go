@@ -21,7 +21,7 @@ var nodeCheckerCron *cron.Cron
 
 func startNodeChecker(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	nodeCheckerCron = cron.New()
-	nodeCheckerCron.AddFunc(cfg.Settings.CheckInterval, func() {
+	nodeCheckerCron.AddFunc(fmt.Sprintf("@every %s", cfg.Settings.CheckInterval), func() {
 		checkNodes(kubeClient, metricsClient, agentKubeClient, cfg)
 	})
 

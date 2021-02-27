@@ -22,7 +22,7 @@ var podCheckerCron *cron.Cron
 
 func startPodChecker(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
 	podCheckerCron = cron.New()
-	podCheckerCron.AddFunc(cfg.Settings.CheckInterval, func() {
+	podCheckerCron.AddFunc(fmt.Sprintf("@every %s", cfg.Settings.CheckInterval), func() {
 		checkPods(kubeClient, metricsClient, agentKubeClient, cfg)
 	})
 
