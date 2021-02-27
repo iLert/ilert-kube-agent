@@ -15,18 +15,10 @@ import (
 
 // Init initializes logs
 func Init(setting config.ConfigSettingsLog) {
-	if setting.JSON {
+	if !setting.JSON {
 		log.Logger = log.With().Caller().Logger().Output(zerolog.ConsoleWriter{
 			Out:        os.Stderr,
 			NoColor:    true,
-			PartsOrder: []string{"time", "message", "caller", "level"},
-			FormatLevel: func(i interface{}) string {
-				return strings.ToLower(fmt.Sprintf("level=%s", i))
-			},
-		})
-	} else {
-		log.Logger = log.Output(zerolog.ConsoleWriter{
-			Out:        os.Stderr,
 			PartsOrder: []string{"time", "message", "caller", "level"},
 			FormatLevel: func(i interface{}) string {
 				return strings.ToLower(fmt.Sprintf("level=%s", i))
