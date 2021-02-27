@@ -62,6 +62,12 @@ type ConfigAlarmSettingWithThreshold struct {
 
 // ConfigLinks definition
 type ConfigLinks struct {
+	Pods  ConfigLinksSetting `yaml:"pods"`
+	Nodes ConfigLinksSetting `yaml:"nodes"`
+}
+
+// ConfigLinksSetting definition
+type ConfigLinksSetting struct {
 	Metrics string `yaml:"metrics"`
 	Logs    string `yaml:"logs"`
 }

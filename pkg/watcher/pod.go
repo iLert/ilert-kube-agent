@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/cbroglie/mustache"
+	"github.com/iLert/ilert-go"
+	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/utils"
 	api "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -85,4 +88,29 @@ func getPodMustacheValues(pod *api.Pod) map[string]string {
 		"pod_namespace": pod.GetNamespace(),
 		"cluster_name":  pod.GetClusterName(),
 	}
+}
+
+func getPodLinks(cfg *config.Config, node *api.Pod) []ilert.IncidentLink {
+	mustacheValues := getPodMustacheValues(node)
+
+	links := make([]ilert.IncidentLink, 0)
+	if cfg.Links.Pods.Metrics != "" {
+		url, err := mustache.Render(cfg.Links.Pods.Metrics, mustacheValues)
+		if err == nil && url != "" {
+			links = append(links, ilert.IncidentLink{
+				Href: url,
+				Text: "Metrics",
+			})
+		}
+	}
+	if cfg.Links.Pods.Logs != "" {
+		url, err := mustache.Render(cfg.Links.Pods.Logs, mustacheValues)
+		if err == nil && url != "" {
+			links = append(links, ilert.IncidentLink{
+				Href: url,
+				Text: "Logs",
+			})
+		}
+	}
+	return links
 }

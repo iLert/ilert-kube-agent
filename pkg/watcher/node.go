@@ -3,6 +3,9 @@ package watcher
 import (
 	"fmt"
 
+	"github.com/cbroglie/mustache"
+	"github.com/iLert/ilert-go"
+	"github.com/iLert/ilert-kube-agent/pkg/config"
 	api "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -41,4 +44,29 @@ func getNodeMustacheValues(node *api.Node) map[string]string {
 		"node_name":    node.GetName(),
 		"cluster_name": node.GetClusterName(),
 	}
+}
+
+func getNodeLinks(cfg *config.Config, node *api.Node) []ilert.IncidentLink {
+	mustacheValues := getNodeMustacheValues(node)
+
+	links := make([]ilert.IncidentLink, 0)
+	if cfg.Links.Nodes.Metrics != "" {
+		url, err := mustache.Render(cfg.Links.Nodes.Metrics, mustacheValues)
+		if err == nil && url != "" {
+			links = append(links, ilert.IncidentLink{
+				Href: url,
+				Text: "Metrics",
+			})
+		}
+	}
+	if cfg.Links.Nodes.Logs != "" {
+		url, err := mustache.Render(cfg.Links.Nodes.Logs, mustacheValues)
+		if err == nil && url != "" {
+			links = append(links, ilert.IncidentLink{
+				Href: url,
+				Text: "Logs",
+			})
+		}
+	}
+	return links
 }

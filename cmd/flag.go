@@ -57,8 +57,10 @@ func parseAndValidateFlags() *config.Config {
 	flag.String("alarms.nodes.resources.priority", "LOW", "The node resources alarm incident priority")
 	flag.Int("alarms.nodes.resources.threshold", 90, "The node resources percentage threshold from 1 to 100")
 
-	flag.String("links.metrics", "", "Metrics URL for the alarm-related incident. Your can use following mustache variables here: pod_namespace, pod_name, node_name, cluster_name")
-	flag.String("links.logs", "", "Logs URL for the alarm-related incident. Your can use following mustache variables here: pod_namespace, pod_name, node_name, cluster_name")
+	flag.String("links.pods.metrics", "", "Metrics URL for the alarm-related incident. Your can use following mustache variables here: pod_namespace, pod_name, cluster_name")
+	flag.String("links.pods.logs", "", "Logs URL for the alarm-related incident. Your can use following mustache variables here: pod_namespace, pod_name, cluster_name")
+	flag.String("links.nodes.metrics", "", "Metrics URL for the alarm-related incident. Your can use following mustache variables here: node_name, cluster_name")
+	flag.String("links.nodes.logs", "", "Logs URL for the alarm-related incident. Your can use following mustache variables here: node_name, cluster_name")
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()

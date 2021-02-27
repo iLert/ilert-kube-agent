@@ -1,3 +1,7 @@
+## v1.3.0 / 2021-02-27
+
+- [ENHANCEMENT] Split pod and node links for better configuration opportunities
+
 ## v1.2.4 / 2021-02-27
 
 - [FIX] Fix cron jobs

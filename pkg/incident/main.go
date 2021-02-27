@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cbroglie/mustache"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -22,7 +21,7 @@ var ilertClient *ilert.Client
 // CreateEvent creates an incident event
 func CreateEvent(
 	cfg *config.Config,
-	mustacheValues map[string]string,
+	links []ilert.IncidentLink,
 	incidentKey string,
 	summary string,
 	details string,
@@ -40,27 +39,9 @@ func CreateEvent(
 		EventType:   eventType,
 		APIKey:      cfg.Settings.APIKey,
 		Priority:    priority,
+		Links:       links,
 	}
-	links := make([]ilert.IncidentLink, 0)
-	if cfg.Links.Metrics != "" {
-		url, err := mustache.Render(cfg.Links.Metrics, mustacheValues)
-		if err == nil && url != "" {
-			links = append(links, ilert.IncidentLink{
-				Href: url,
-				Text: "Metrics",
-			})
-		}
-	}
-	if cfg.Links.Logs != "" {
-		url, err := mustache.Render(cfg.Links.Logs, mustacheValues)
-		if err == nil && url != "" {
-			links = append(links, ilert.IncidentLink{
-				Href: url,
-				Text: "Logs",
-			})
-		}
-	}
-	event.Links = links
+
 	log.Debug().Interface("event", event).Msg("Creating incident event")
 
 	output, err := ilertClient.CreateEvent(&ilert.CreateEventInput{

@@ -35,7 +35,8 @@ func startPodInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentcl
 					cfg.Alarms.Pods.Terminate.Enabled && incidentRef == nil {
 					summary := fmt.Sprintf("Pod %s/%s terminated - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Terminated.Reason)
 					details := getPodDetailsWithStatus(kubeClient, pod, &containerStatus)
-					incidentID := incident.CreateEvent(cfg, getPodMustacheValues(pod), podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Terminate.Priority)
+					links := getPodLinks(cfg, pod)
+					incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Terminate.Priority)
 					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
 					break
 				}
@@ -45,7 +46,8 @@ func startPodInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentcl
 					cfg.Alarms.Pods.Waiting.Enabled && incidentRef == nil {
 					summary := fmt.Sprintf("Pod %s/%s waiting - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Waiting.Reason)
 					details := getPodDetailsWithStatus(kubeClient, pod, &containerStatus)
-					incidentID := incident.CreateEvent(cfg, getPodMustacheValues(pod), podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Waiting.Priority)
+					links := getPodLinks(cfg, pod)
+					incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Waiting.Priority)
 					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
 					break
 				}
@@ -53,7 +55,8 @@ func startPodInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentcl
 				if cfg.Alarms.Pods.Restarts.Enabled && containerStatus.RestartCount >= cfg.Alarms.Pods.Restarts.Threshold && incidentRef == nil {
 					summary := fmt.Sprintf("Pod %s/%s restarts threshold reached: %d", pod.GetNamespace(), pod.GetName(), containerStatus.RestartCount)
 					details := getPodDetailsWithStatus(kubeClient, pod, &containerStatus)
-					incidentID := incident.CreateEvent(cfg, getPodMustacheValues(pod), podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Restarts.Priority)
+					links := getPodLinks(cfg, pod)
+					incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Restarts.Priority)
 					incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
 					break
 				}
