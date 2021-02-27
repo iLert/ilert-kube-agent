@@ -6,22 +6,26 @@ import (
 	"os"
 	"strings"
 
-	"github.com/iLert/ilert-kube-agent/pkg/config"
-	"github.com/iLert/ilert-kube-agent/pkg/logger"
-	"github.com/iLert/ilert-kube-agent/pkg/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	shared "github.com/iLert/ilert-kube-agent"
+	"github.com/iLert/ilert-kube-agent/pkg/config"
+	"github.com/iLert/ilert-kube-agent/pkg/logger"
+	"github.com/iLert/ilert-kube-agent/pkg/utils"
 )
 
 var (
 	help    bool
+	version bool
 	cfgFile string
 )
 
 func parseAndValidateFlags() *config.Config {
 
 	flag.BoolVar(&help, "help", false, "Print this help.")
+	flag.BoolVar(&version, "version", false, "Print version.")
 	flag.StringVar(&cfgFile, "config", "", "Config file")
 
 	flag.String("settings.kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
@@ -68,6 +72,11 @@ func parseAndValidateFlags() *config.Config {
 
 	if help {
 		pflag.Usage()
+		os.Exit(0)
+	}
+
+	if version {
+		fmt.Println(shared.Version)
 		os.Exit(0)
 	}
 
