@@ -127,12 +127,22 @@ func parseAndValidateFlags() *config.Config {
 		cfg.Settings.APIKey = ilertAPIKeyEnv
 	}
 
+	namespaceEnv := utils.GetEnv("NAMESPACE", "")
+	if namespaceEnv != "" {
+		cfg.Settings.Namespace = namespaceEnv
+	}
+
+	logLevelEnv := utils.GetEnv("LOG_LEVEL", "")
+	if logLevelEnv != "" {
+		cfg.Settings.Log.Level = logLevelEnv
+	}
+
 	if cfg.Settings.ElectionID == "" {
 		log.Fatal().Msg("Election ID is required.")
 	}
 
 	if cfg.Settings.Namespace == "" {
-		log.Fatal().Msg("Namespace is required.")
+		log.Fatal().Msg("Namespace is required. Use --settings.namespace flag or NAMESPACE env var")
 	}
 
 	if cfg.Settings.APIKey == "" {

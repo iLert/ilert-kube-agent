@@ -1,3 +1,7 @@
+## v1.4.1 / 2021-02-28
+
+- [FIX] Fix standard k8s env vars
+
 ## v1.4.0 / 2021-02-28
 
 - [ENHANCEMENT] Make dynamic pod and node links for better configuration opportunities
