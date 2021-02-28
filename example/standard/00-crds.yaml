@@ -29,3 +29,5 @@ spec:
               type: "string"
             details:
               type: "string"
+            type:
+              type: "string"

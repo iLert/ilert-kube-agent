@@ -99,7 +99,7 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 								details := getPodDetailsWithUsageLimit(kubeClient, &pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 								links := getPodLinks(cfg, &pod)
 								incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Priority)
-								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
+								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "resources")
 							}
 						}
 					}
@@ -121,13 +121,13 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 								details := getPodDetailsWithUsageLimit(kubeClient, &pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 								links := getPodLinks(cfg, &pod)
 								incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Priority)
-								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details)
+								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "resources")
 							}
 						}
 					}
 				}
 			}
-			if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 {
+			if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 && incidentRef.Spec.Type == "resources" {
 				incident.CreateEvent(cfg, nil, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, cfg.Alarms.Pods.Resources.Priority)
 				incident.DeleteIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
 			}

@@ -94,21 +94,12 @@ func getPodLinks(cfg *config.Config, node *api.Pod) []ilert.IncidentLink {
 	mustacheValues := getPodMustacheValues(node)
 
 	links := make([]ilert.IncidentLink, 0)
-	if cfg.Links.Pods.Metrics != "" {
-		url, err := mustache.Render(cfg.Links.Pods.Metrics, mustacheValues)
+	for _, link := range cfg.Links.Pods {
+		url, err := mustache.Render(link.Href, mustacheValues)
 		if err == nil && url != "" {
 			links = append(links, ilert.IncidentLink{
 				Href: url,
-				Text: "Metrics",
-			})
-		}
-	}
-	if cfg.Links.Pods.Logs != "" {
-		url, err := mustache.Render(cfg.Links.Pods.Logs, mustacheValues)
-		if err == nil && url != "" {
-			links = append(links, ilert.IncidentLink{
-				Href: url,
-				Text: "Logs",
+				Text: link.Name,
 			})
 		}
 	}

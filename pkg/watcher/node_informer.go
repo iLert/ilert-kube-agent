@@ -34,7 +34,7 @@ func startNodeInformer(kubeClient *kubernetes.Clientset, agentKubeClient *agentc
 				details := getNodeDetails(kubeClient, node)
 				links := getNodeLinks(cfg, node)
 				incidentID := incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Priority)
-				incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details)
+				incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details, "terminate")
 			}
 		},
 	})

@@ -1,3 +1,9 @@
+## v1.4.0 / 2021-02-28
+
+- [ENHANCEMENT] Make dynamic pod and node links for better configuration opportunities
+- [ENHANCEMENT] Add alarm type to incident ref
+- [FIX] Incident resolution based on alarm type
+
 ## v1.3.0 / 2021-02-27
 
 - [ENHANCEMENT] Split pod and node links for better configuration opportunities

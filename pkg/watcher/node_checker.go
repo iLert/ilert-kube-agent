@@ -85,7 +85,7 @@ func checkNodes(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clients
 						details := getNodeDetailsWithUsageLimit(kubeClient, &node, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 						links := getNodeLinks(cfg, &node)
 						incidentID := incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Priority)
-						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details)
+						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details, "resources")
 					}
 				}
 			}
@@ -104,12 +104,12 @@ func checkNodes(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clients
 						details := getNodeDetailsWithUsageLimit(kubeClient, &node, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 						links := getNodeLinks(cfg, &node)
 						incidentID := incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Priority)
-						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details)
+						incident.CreateIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details, "resources")
 					}
 				}
 			}
 
-			if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 {
+			if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 && incidentRef.Spec.Type == "resources" {
 				incident.CreateEvent(cfg, nil, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, cfg.Alarms.Nodes.Resources.Priority)
 				incident.DeleteIncidentRef(agentKubeClient, node.GetName(), cfg.Settings.Namespace)
 			}

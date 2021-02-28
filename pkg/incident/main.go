@@ -67,7 +67,7 @@ func CreateEvent(
 }
 
 // CreateIncidentRef definition
-func CreateIncidentRef(agentKubeClient *agentclientset.Clientset, name string, namespace string, incidentID *int64, summary string, details string) {
+func CreateIncidentRef(agentKubeClient *agentclientset.Clientset, name string, namespace string, incidentID *int64, summary string, details string, incidentType string) {
 	if incidentID != nil && *incidentID > 0 {
 		log.Debug().Int64("incident_id", *incidentID).Str("name", name).Str("namespace", namespace).Msg("Creating incident ref")
 		incident := &v1.Incident{
@@ -79,6 +79,7 @@ func CreateIncidentRef(agentKubeClient *agentclientset.Clientset, name string, n
 				ID:      *incidentID,
 				Summary: summary,
 				Details: details,
+				Type:    incidentType,
 			},
 		}
 		_, err := agentKubeClient.IlertV1().Incidents(namespace).Create(incident)

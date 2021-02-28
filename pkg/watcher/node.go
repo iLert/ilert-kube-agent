@@ -50,21 +50,12 @@ func getNodeLinks(cfg *config.Config, node *api.Node) []ilert.IncidentLink {
 	mustacheValues := getNodeMustacheValues(node)
 
 	links := make([]ilert.IncidentLink, 0)
-	if cfg.Links.Nodes.Metrics != "" {
-		url, err := mustache.Render(cfg.Links.Nodes.Metrics, mustacheValues)
+	for _, link := range cfg.Links.Nodes {
+		url, err := mustache.Render(link.Href, mustacheValues)
 		if err == nil && url != "" {
 			links = append(links, ilert.IncidentLink{
 				Href: url,
-				Text: "Metrics",
-			})
-		}
-	}
-	if cfg.Links.Nodes.Logs != "" {
-		url, err := mustache.Render(cfg.Links.Nodes.Logs, mustacheValues)
-		if err == nil && url != "" {
-			links = append(links, ilert.IncidentLink{
-				Href: url,
-				Text: "Logs",
+				Text: link.Name,
 			})
 		}
 	}
