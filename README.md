@@ -20,13 +20,20 @@ Kubernetes service and deployment will be created.
 
 **Note:** Google Kubernetes Engine (GKE) Users - GKE has strict role permissions that will prevent the kube-state-metrics roles and role bindings from being created. To work around this, you can give your GCP identity the cluster-admin role by running the following one-liner:
 
-```
+```sh
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud info --format='value(config.account)')
 ```
 
 ### Helm Deployment
 
-> TODO
+```sh
+helm repo add ilert https://ilert.github.io/charts/
+helm repo update
+
+helm upgrade --install --namespace kube-systems \
+    ilert-kube-agent ilert/ilert-kube-agent \
+    --set config.settings.apiKey="<YOUR KEY HERE>"
+```
 
 ### Terraform Deployment
 
