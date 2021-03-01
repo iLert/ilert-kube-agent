@@ -6,5 +6,5 @@ COPY . .
 RUN make build
 
 FROM alpine:latest
-COPY --from=builder /app/bin/ilert-kube-agent /go/bin/ilert-kube-agent
-CMD ["/go/bin/ilert-kube-agent"]
+COPY --from=builder /app/bin/ilert-kube-agent /bin/ilert-kube-agent
+CMD ["/bin/ilert-kube-agent"]
