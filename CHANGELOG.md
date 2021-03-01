@@ -1,3 +1,7 @@
+## v1.4.1 / 2021-03-01
+
+- [FIX] Fix binary in docker
+
 ## v1.4.1 / 2021-02-28
 
 - [FIX] Fix standard k8s env vars
