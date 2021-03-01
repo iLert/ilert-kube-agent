@@ -46,7 +46,7 @@ func CreateEvent(
 
 	output, err := ilertClient.CreateEvent(&ilert.CreateEventInput{
 		Event: event,
-		// URL:   utils.String(fmt.Sprintf("https://api.ilert.com/api/v1/events/kubernetes/%s", ilertAPIKey)),
+		URL:   utils.String(fmt.Sprintf("https://api.ilert.com/api/v1/events/kubernetes/%s", cfg.Settings.APIKey)),
 	})
 
 	if err != nil {

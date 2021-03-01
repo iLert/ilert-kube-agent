@@ -1,3 +1,7 @@
+## v1.4.3 / 2021-03-01
+
+- [ENHANCEMENT] Move to native kubernetes incident url
+
 ## v1.4.2 / 2021-03-01
 
 - [FIX] Fix binary in docker
