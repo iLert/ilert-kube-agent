@@ -5,18 +5,29 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/ilert/ilert-kube-agent.svg?maxAge=604800)](https://hub.docker.com/r/ilert/ilert-kube-agent)
 
 ilert-kube-agent is a service that listens to the Kubernetes API
-server and generates incidents about the health state of the pods and the nodes. (See examples in
-the Alerts section below.)
+server and generates incidents about the health state of the pods and the nodes.
 
-### Usage
+<sub>Node alert example:</sup>
+![Node alert example](img/slack_node_cpu_alert.png)
 
-Simply build and run ilert-kube-agent inside a Kubernetes pod which has a
-service account token that has read-only access to the Kubernetes cluster.
+<sub>Pod alert example:</sup>
+![Pod alert example](img/slack_pod_cpu_alert.png)
 
-#### Kubernetes Deployment
+## Usage
 
-To deploy this project, you can simply run `kubectl apply -f examples/standard` and a
-Kubernetes service and deployment will be created.
+Simply build and run ilert-kube-agent to get Kubernetes cluster alarms.
+| Flag | Description |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--alarms.pods.terminate.enabled` | Enables terminate pod alarms. Triggers an alarm if any pod terminated e.g. Terminated, OOMKilled, Error, ContainerCannotRun, DeadlineExceeded [Default: true] |
+| `--alarms.pods.waiting.enabled` | Enables waiting pod alarms. Triggers an alarm if any pod in waiting status e.g. CrashLoopBackOff, ErrImagePull, ImagePullBackOff, CreateContainerConfigError, InvalidImageName, CreateContainerError [Default: true] |
+| `--alarms.pods.restarts.enabled` | Enables restarts pod alarms. Triggers an alarm if any pod restarts count reached threshold [Default: true] |
+| `--alarms.pods.resources.cpu.enabled` | Enables pod CPU resource alarms. Triggers an alarm if any pod reaches CPU limit [Default: true] |
+| `--alarms.pods.resources.memory.enabled` | Enables pod CPU resource alarms. Triggers an alarm if any pod reaches memory limit [Default: true] |
+| `--alarms.nodes.terminate.enabled` | Enables terminate node alarms. Triggers an alarm if any node terminated. [Default: true] |
+| `--alarms.nodes.resources.cpu.enabled` | Enables node CPU resource alarms. Triggers an alarm if any node reaches CPU limit [Default: true] |
+| `--alarms.nodes.resources.memory.enabled` | Enables node CPU resource alarms. Triggers an alarm if any node reaches memory limit [Default: true] |
+
+## Deployment
 
 **Note:** Google Kubernetes Engine (GKE) Users - GKE has strict role permissions that will prevent the kube-state-metrics roles and role bindings from being created. To work around this, you can give your GCP identity the cluster-admin role by running the following one-liner:
 
@@ -24,7 +35,7 @@ Kubernetes service and deployment will be created.
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud info --format='value(config.account)')
 ```
 
-### Helm Deployment
+### Helm Deployment (recommended)
 
 ```sh
 helm repo add ilert https://ilert.github.io/charts/
@@ -35,7 +46,7 @@ helm upgrade --install --namespace kube-systems \
     --set config.settings.apiKey="<YOUR KEY HERE>"
 ```
 
-### Terraform Deployment
+### Terraform Deployment (recommended)
 
 - Define module:
 
@@ -54,6 +65,11 @@ module "ilert-kube-agent" {
 terraform init
 terraform apply
 ```
+
+### Raw YAML Deployment
+
+To deploy this project, you can simply run `kubectl apply -f examples/standard` and a
+Kubernetes service and deployment will be created.
 
 ## Getting help
 
