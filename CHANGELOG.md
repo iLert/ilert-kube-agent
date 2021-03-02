@@ -1,3 +1,7 @@
+## v1.5.0 / 2021-03-02
+
+- [ENHANCEMENT] Split CPU and memory resource config for better configuration opportunities
+
 ## v1.4.3 / 2021-03-01
 
 - [ENHANCEMENT] Move to native kubernetes incident url

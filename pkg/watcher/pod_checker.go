@@ -78,7 +78,8 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 				if !ok {
 					memoryUsage = 0
 				}
-				if cpuUsage > 0 && container.Resources.Limits.Cpu() != nil {
+
+				if cfg.Alarms.Pods.Resources.CPU.Enabled && cpuUsage > 0 && container.Resources.Limits.Cpu() != nil {
 					cpuLimitDec := container.Resources.Limits.Cpu().AsDec().String()
 					cpuLimit, err = strconv.ParseFloat(cpuLimitDec, 64)
 					if err != nil {
@@ -92,19 +93,20 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 							Float64("limit", cpuLimit).
 							Float64("usage", cpuUsage).
 							Msg("Checking CPU limit")
-						if cpuUsage >= (float64(cfg.Alarms.Pods.Resources.Threshold) * (cpuLimit / 100)) {
+						if cpuUsage >= (float64(cfg.Alarms.Pods.Resources.CPU.Threshold) * (cpuLimit / 100)) {
 							healthy = false
 							if incidentRef == nil {
-								summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Threshold)
+								summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.CPU.Threshold)
 								details := getPodDetailsWithUsageLimit(kubeClient, &pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 								links := getPodLinks(cfg, &pod)
-								incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Priority)
+								incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority)
 								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "resources")
 							}
 						}
 					}
 				}
-				if memoryUsage > 0 && container.Resources.Limits.Memory() != nil {
+
+				if cfg.Alarms.Pods.Resources.Memory.Enabled && memoryUsage > 0 && container.Resources.Limits.Memory() != nil {
 					memoryLimit, ok := container.Resources.Limits.Memory().AsInt64()
 					if ok && memoryLimit > 0 {
 						log.Debug().
@@ -114,13 +116,13 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 							Int64("limit", memoryLimit).
 							Int64("usage", memoryUsage).
 							Msg("Checking memory limit")
-						if memoryUsage >= (int64(cfg.Alarms.Pods.Resources.Threshold) * (memoryLimit / 100)) {
+						if memoryUsage >= (int64(cfg.Alarms.Pods.Resources.Memory.Threshold) * (memoryLimit / 100)) {
 							healthy = false
 							if incidentRef == nil {
-								summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Threshold)
+								summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Memory.Threshold)
 								details := getPodDetailsWithUsageLimit(kubeClient, &pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 								links := getPodLinks(cfg, &pod)
-								incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Priority)
+								incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority)
 								incident.CreateIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "resources")
 							}
 						}
@@ -128,7 +130,7 @@ func checkPods(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientse
 				}
 			}
 			if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 && incidentRef.Spec.Type == "resources" {
-				incident.CreateEvent(cfg, nil, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, cfg.Alarms.Pods.Resources.Priority)
+				incident.CreateEvent(cfg, nil, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "")
 				incident.DeleteIncidentRef(agentKubeClient, pod.GetName(), pod.GetNamespace())
 			}
 		}

@@ -37,14 +37,14 @@ type ConfigAlarmsPods struct {
 	Terminate ConfigAlarmSetting              `yaml:"terminate"`
 	Waiting   ConfigAlarmSetting              `yaml:"waiting"`
 	Restarts  ConfigAlarmSettingWithThreshold `yaml:"restarts"`
-	Resources ConfigAlarmSettingWithThreshold `yaml:"resources"`
+	Resources ConfigAlarmSettingResources     `yaml:"resources"`
 }
 
 // ConfigAlarmsNodes definition
 type ConfigAlarmsNodes struct {
-	Enabled   bool                            `yaml:"enabled"`
-	Terminate ConfigAlarmSetting              `yaml:"terminate"`
-	Resources ConfigAlarmSettingWithThreshold `yaml:"resources"`
+	Enabled   bool                        `yaml:"enabled"`
+	Terminate ConfigAlarmSetting          `yaml:"terminate"`
+	Resources ConfigAlarmSettingResources `yaml:"resources"`
 }
 
 // ConfigAlarmSetting definition
@@ -58,6 +58,13 @@ type ConfigAlarmSettingWithThreshold struct {
 	Enabled   bool   `yaml:"enabled"`
 	Priority  string `yaml:"priority"`
 	Threshold int32  `yaml:"priority"`
+}
+
+// ConfigAlarmSettingResources definition
+type ConfigAlarmSettingResources struct {
+	Enabled bool                            `yaml:"enabled"`
+	CPU     ConfigAlarmSettingWithThreshold `yaml:"cpu"`
+	Memory  ConfigAlarmSettingWithThreshold `yaml:"memory"`
 }
 
 // ConfigLinks definition

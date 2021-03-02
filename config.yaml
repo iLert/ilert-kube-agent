@@ -54,10 +54,20 @@ alarms:
     resources:
       ## Enables resources pod alarms
       enabled: true
-      ## The pod resources alarm incident priority
-      priority: LOW
-      ## The pod resources percentage threshold from 1 to 100
-      threshold: 90
+      cpu:
+        ## Enables CPU resources pod alarms
+        enabled: true
+        ## The pod resources alarm incident priority
+        priority: LOW
+        ## The pod CPU resources percentage threshold from 1 to 100
+        threshold: 90
+      memory:
+        ## Enables memory resources pod alarms
+        enabled: true
+        ## The pod resources alarm incident priority
+        priority: LOW
+        ## The pod memory resources percentage threshold from 1 to 100
+        threshold: 90
 
   nodes:
     ## Enables all pod alarms
@@ -72,10 +82,20 @@ alarms:
     resources:
       ## Enables resources node alarms
       enabled: true
-      ## The node resources alarm incident priority
-      priority: LOW
-      ## The node resources percentage threshold from 1 to 100
-      threshold: 90
+      cpu:
+        ## Enables CPU resources node alarms
+        enabled: true
+        ## The node resources alarm incident priority
+        priority: LOW
+        ## The node CPU resources percentage threshold from 1 to 100
+        threshold: 90
+      memory:
+        ## Enables memory resources node alarms
+        enabled: true
+        ## The node resources alarm incident priority
+        priority: LOW
+        ## The node memory resources percentage threshold from 1 to 100
+        threshold: 90
 
 links:
   pods:
