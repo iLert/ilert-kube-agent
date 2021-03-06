@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/router"
 	"github.com/iLert/ilert-kube-agent/pkg/storage"
 	"github.com/iLert/ilert-kube-agent/pkg/watcher"
@@ -30,7 +31,15 @@ const (
 func main() {
 	cfg := parseAndValidateFlags()
 
-	log.Info().Interface("config", cfg).Msg("Starting agent with config")
+	log.Info().Interface("config", struct {
+		Settings config.ConfigSettings
+		Alarms   config.ConfigAlarms
+		Links    config.ConfigLinks
+	}{
+		Settings: cfg.Settings,
+		Alarms:   cfg.Alarms,
+		Links:    cfg.Links,
+	}).Msg("Starting agent with config")
 
 	if cfg.GetRunOnce() {
 		watcher.RunOnce(cfg)
