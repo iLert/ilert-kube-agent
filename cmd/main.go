@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/router"
 	"github.com/iLert/ilert-kube-agent/pkg/storage"
 	"github.com/iLert/ilert-kube-agent/pkg/watcher"
@@ -17,12 +16,9 @@ import (
 	"github.com/rs/zerolog/log"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 const (
@@ -35,6 +31,11 @@ func main() {
 	cfg := parseAndValidateFlags()
 
 	log.Info().Interface("config", cfg).Msg("Starting agent with config")
+
+	if cfg.GetRunOnce() {
+		watcher.RunOnce(cfg)
+		return
+	}
 
 	srg := &storage.Storage{}
 	srg.Init()
@@ -60,38 +61,12 @@ func main() {
 		log.Fatal().Err(err).Msg("Unable to get hostname")
 	}
 
-	config, err := clientcmd.BuildConfigFromFlags(cfg.Settings.Master, cfg.Settings.KubeConfig)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to build kubeconfig")
-	}
-
-	kubeClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create kube client")
-	}
-
-	agentKubeClient, err := agentclientset.NewForConfig(config)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create kube client")
-	}
-
-	metricsClient, err := metrics.NewForConfig(config)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create metrics client")
-	}
-
-	// Validate that the client is ok.
-	_, err = kubeClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
-	}
-
 	lock := &resourcelock.LeaseLock{
 		LeaseMeta: metav1.ObjectMeta{
 			Name:      cfg.Settings.ElectionID,
 			Namespace: cfg.Settings.Namespace,
 		},
-		Client: kubeClient.CoordinationV1(),
+		Client: cfg.KubeClient.CoordinationV1(),
 		LockConfig: resourcelock.ResourceLockConfig{
 			Identity: id,
 		},
@@ -117,7 +92,7 @@ func main() {
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(_ context.Context) {
 				log.Info().Str("identity", id).Msg("I am the new leader")
-				watcher.Start(kubeClient, metricsClient, agentKubeClient, cfg)
+				watcher.Start(cfg)
 			},
 			OnStoppedLeading: func() {
 				watcher.Stop()

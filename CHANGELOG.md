@@ -1,3 +1,10 @@
+## v1.6.0 / 2021-03-05
+
+- [FEATURE] Add cluster alarms
+- [FEATURE] Add serverless support via `watcher.RunOnce(...)`
+- [FEATURE] Add option to run checks only once via `--run-once` flag
+- [ENHANCEMENT] Add insecure option for the kubernetes API server
+
 ## v1.5.0 / 2021-03-02
 
 - [ENHANCEMENT] Split CPU and memory resource config for better configuration opportunities

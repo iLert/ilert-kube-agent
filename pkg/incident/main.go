@@ -32,6 +32,11 @@ func CreateEvent(
 		ilertClient = ilert.NewClient(ilert.WithUserAgent(fmt.Sprintf("ilert-kube-agent/%s", shared.Version)))
 	}
 
+	if cfg.Settings.APIKey == "" {
+		log.Error().Msg("Failed to create an incident event. API key is required")
+		return nil
+	}
+
 	event := &ilert.Event{
 		IncidentKey: incidentKey,
 		Summary:     summary,
@@ -68,6 +73,9 @@ func CreateEvent(
 
 // CreateIncidentRef definition
 func CreateIncidentRef(agentKubeClient *agentclientset.Clientset, name string, namespace string, incidentID *int64, summary string, details string, incidentType string) {
+	if agentKubeClient == nil {
+		return
+	}
 	if incidentID != nil && *incidentID > 0 {
 		log.Debug().Int64("incident_id", *incidentID).Str("name", name).Str("namespace", namespace).Msg("Creating incident ref")
 		incident := &v1.Incident{
@@ -91,6 +99,9 @@ func CreateIncidentRef(agentKubeClient *agentclientset.Clientset, name string, n
 
 // GetIncidentRef definition
 func GetIncidentRef(agentKubeClient *agentclientset.Clientset, name string, namespace string) *v1.Incident {
+	if agentKubeClient == nil {
+		return nil
+	}
 	incident, err := agentKubeClient.IlertV1().Incidents(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		// log.Debug().Err(err).Msg("Failed to get incident ref")
@@ -104,6 +115,9 @@ func GetIncidentRef(agentKubeClient *agentclientset.Clientset, name string, name
 
 // DeleteIncidentRef definition
 func DeleteIncidentRef(agentKubeClient *agentclientset.Clientset, name string, namespace string) {
+	if agentKubeClient == nil {
+		return
+	}
 	log.Debug().Str("name", name).Str("namespace", namespace).Msg("Deleting incident ref")
 	err := agentKubeClient.IlertV1().Incidents(namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {

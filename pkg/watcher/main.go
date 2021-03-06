@@ -2,11 +2,10 @@ package watcher
 
 import (
 	"github.com/rs/zerolog/log"
-	"k8s.io/client-go/kubernetes"
-	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
+	"github.com/iLert/ilert-kube-agent/pkg/logger"
 )
 
 // These are the valid reason for the container waiting
@@ -33,16 +32,16 @@ const (
 var containerTerminatedReasons = []string{Terminated, OOMKilled, Error, ContainerCannotRun, DeadlineExceeded}
 
 // Start starts watcher
-func Start(kubeClient *kubernetes.Clientset, metricsClient *metrics.Clientset, agentKubeClient *agentclientset.Clientset, cfg *config.Config) {
+func Start(cfg *config.Config) {
 	log.Info().Msg("Start watcher")
 
 	if cfg.Alarms.Pods.Enabled {
-		go startPodInformer(kubeClient, agentKubeClient, cfg)
-		go startPodChecker(kubeClient, metricsClient, agentKubeClient, cfg)
+		go startPodInformer(cfg)
+		go startPodChecker(cfg)
 	}
 	if cfg.Alarms.Nodes.Enabled {
-		go startNodeInformer(kubeClient, agentKubeClient, cfg)
-		go startNodeChecker(kubeClient, metricsClient, agentKubeClient, cfg)
+		go startNodeInformer(cfg)
+		go startNodeChecker(cfg)
 	}
 }
 
@@ -54,4 +53,44 @@ func Stop() {
 	stopPodMetricsChecker()
 	stopNodeInformer()
 	stopNodeMetricsChecker()
+}
+
+// RunOnce run watcher runs e.g. serverless call
+func RunOnce(cfg *config.Config) {
+	log.Info().Msg("Run watcher once")
+
+	cfg.Validate()
+	logger.Init(cfg.Settings.Log)
+
+	err := analyzeClusterStatus(cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to check cluster status")
+		return
+	}
+
+	if cfg.Alarms.Pods.Enabled {
+		pods, err := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
+		}
+
+		for _, pod := range pods.Items {
+			analyzePodStatus(&pod, cfg)
+			analyzePodResources(&pod, cfg)
+		}
+	}
+	if cfg.Alarms.Nodes.Enabled {
+		nodes, err := cfg.KubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
+		}
+
+		log.Debug().Msg("Running nodes resource check")
+		for _, node := range nodes.Items {
+			analyzeNodeStatus(&node, cfg)
+			analyzeNodeResources(&node, cfg)
+		}
+	}
+
+	log.Info().Msg("Watcher finished")
 }

@@ -8,6 +8,9 @@ settings:
   ## The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.
   # master: ""
 
+  ## The Kubernetes API server should be accessed without verifying the TLS certificate. Overrides any value in kubeconfig. Only required if out-of-cluster.
+  # insecure: false
+
   ## Namespace in which agent run.
   namespace: kube-systems
 
@@ -27,6 +30,12 @@ settings:
     json: false
 
 alarms:
+  cluster:
+    ## Enables cluster alarms
+    enabled: true
+    ## The cluster alarm incident priority
+    priority: HIGH
+
   pods:
     ## Enables all pod alarms
     enabled: false

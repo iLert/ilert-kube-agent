@@ -1,7 +1,20 @@
 package config
 
+import (
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+
+	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
+)
+
 // Config definition
 type Config struct {
+	KubeConfig      *rest.Config
+	KubeClient      *kubernetes.Clientset
+	AgentKubeClient *agentclientset.Clientset
+	MetricsClient   *metrics.Clientset
+
 	Settings ConfigSettings `yaml:"settings"`
 	Alarms   ConfigAlarms   `yaml:"alarms"`
 	Links    ConfigLinks    `yaml:"links"`
@@ -12,6 +25,7 @@ type ConfigSettings struct {
 	APIKey        string            `yaml:"apiKey"`
 	KubeConfig    string            `yaml:"kubeconfig"`
 	Master        string            `yaml:"master"`
+	Insecure      bool              `yaml:"insecure"`
 	Namespace     string            `yaml:"namespace"`
 	Port          int               `yaml:"port"`
 	Log           ConfigSettingsLog `yaml:"log"`
@@ -27,8 +41,9 @@ type ConfigSettingsLog struct {
 
 // ConfigAlarms definition
 type ConfigAlarms struct {
-	Pods  ConfigAlarmsPods  `yaml:"pods"`
-	Nodes ConfigAlarmsNodes `yaml:"nodes"`
+	Cluster ConfigAlarmSetting `yaml:"cluster"`
+	Pods    ConfigAlarmsPods   `yaml:"pods"`
+	Nodes   ConfigAlarmsNodes  `yaml:"nodes"`
 }
 
 // ConfigAlarmsPods definition

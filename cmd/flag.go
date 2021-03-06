@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/pflag"
@@ -13,12 +12,12 @@ import (
 	shared "github.com/iLert/ilert-kube-agent"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/logger"
-	"github.com/iLert/ilert-kube-agent/pkg/utils"
 )
 
 var (
 	help    bool
 	version bool
+	runOnce bool
 	cfgFile string
 )
 
@@ -26,10 +25,12 @@ func parseAndValidateFlags() *config.Config {
 
 	flag.BoolVar(&help, "help", false, "Print this help.")
 	flag.BoolVar(&version, "version", false, "Print version.")
+	flag.BoolVar(&runOnce, "run-once", false, "Run checks only once and exit.")
 	flag.StringVar(&cfgFile, "config", "", "Config file")
 
 	flag.String("settings.kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
 	flag.String("settings.master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	flag.Bool("settings.insecure", false, "The Kubernetes API server should be accessed without verifying the TLS certificate. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	flag.String("settings.namespace", "kube-system", "Namespace in which agent run.")
 	flag.String("settings.log.level", "info", "Log level (debug, info, warn, error, fatal).")
 	flag.Bool("settings.log.json", false, "Enable json format log")
@@ -37,6 +38,9 @@ func parseAndValidateFlags() *config.Config {
 	flag.Int("settings.port", 9092, "The metrics server port")
 	flag.String("settings.apiKey", "", "(REQUIRED) The iLert alert source api key")
 	flag.String("settings.checkInterval", "15s", "The evaluation check interval e.g. resources check")
+
+	flag.Bool("alarms.cluster.enabled", true, "Enable cluster alarms")
+	flag.String("alarms.cluster.priority", "HIGH", "The cluster alarm incident priority")
 
 	flag.Bool("alarms.pods.enabled", true, "Enable pod alarms")
 	flag.Bool("alarms.pods.terminate.enabled", true, "Enable pod terminate alarms")
@@ -69,9 +73,6 @@ func parseAndValidateFlags() *config.Config {
 	pflag.Parse()
 
 	viper.RegisterAlias("settings.api-key", "settings.apiKey")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
-	viper.SetEnvPrefix("ilert")
-	viper.AutomaticEnv()
 
 	err := viper.BindPFlags(pflag.CommandLine)
 	if err != nil {
@@ -88,105 +89,16 @@ func parseAndValidateFlags() *config.Config {
 		os.Exit(0)
 	}
 
-	if cfgFile != "" {
-		log.Debug().Str("file", cfgFile).Msg("Reading config file")
-		viper.SetConfigFile(cfgFile)
-		err := viper.ReadInConfig()
-		if err != nil {
-			log.Fatal().Err(err).Msg("Unable to read config")
-		}
-	}
-
 	cfg := &config.Config{}
-	err = viper.Unmarshal(cfg)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Unable to decode config")
+	if cfgFile != "" {
+		cfg.SetConfigFile(cfgFile)
 	}
-
-	if cfg.Links.Pods == nil {
-		cfg.Links.Pods = make([]config.ConfigLinksSetting, 0)
+	if runOnce {
+		cfg.SetRunOnce(true)
 	}
-	if cfg.Links.Nodes == nil {
-		cfg.Links.Nodes = make([]config.ConfigLinksSetting, 0)
-	}
-
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		if strings.HasPrefix(pair[0], "ILERT_LINKS_PODS_") {
-			link := strings.ReplaceAll(pair[0], "ILERT_LINKS_PODS_", "")
-			cfg.Links.Pods = append(cfg.Links.Pods, config.ConfigLinksSetting{
-				Name: strings.Title(strings.ToLower(strings.ReplaceAll(link, "_", " "))),
-				Href: pair[1],
-			})
-		}
-
-		if strings.HasPrefix(pair[0], "ILERT_LINKS_NODES_") {
-			cfg.Links.Nodes = append(cfg.Links.Nodes, config.ConfigLinksSetting{
-				Name: strings.Title(strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(pair[0], "ILERT_LINKS_NODES_", ""), "_", " "))),
-				Href: pair[1],
-			})
-		}
-	}
-
+	cfg.Load()
+	cfg.Validate()
 	logger.Init(cfg.Settings.Log)
 
-	ilertAPIKeyEnv := utils.GetEnv("ILERT_API_KEY", "")
-	if ilertAPIKeyEnv != "" {
-		cfg.Settings.APIKey = ilertAPIKeyEnv
-	}
-
-	namespaceEnv := utils.GetEnv("NAMESPACE", "")
-	if namespaceEnv != "" {
-		cfg.Settings.Namespace = namespaceEnv
-	}
-
-	logLevelEnv := utils.GetEnv("LOG_LEVEL", "")
-	if logLevelEnv != "" {
-		cfg.Settings.Log.Level = logLevelEnv
-	}
-
-	if cfg.Settings.ElectionID == "" {
-		log.Fatal().Msg("Election ID is required.")
-	}
-
-	if cfg.Settings.Namespace == "" {
-		log.Fatal().Msg("Namespace is required. Use --settings.namespace flag or NAMESPACE env var")
-	}
-
-	if cfg.Settings.APIKey == "" {
-		log.Fatal().Msg("iLert api key is required. Use --settings.apiKey flag or ILERT_API_KEY env var")
-	}
-
-	if cfg.Settings.Log.Level != "debug" && cfg.Settings.Log.Level != "info" && cfg.Settings.Log.Level != "warn" && cfg.Settings.Log.Level != "error" && cfg.Settings.Log.Level != "fatal" {
-		log.Fatal().Msg("Invalid --settings.log.level flag value or config.")
-	}
-
-	checkPriorityConfig(cfg.Alarms.Pods.Terminate.Priority, "--alarms.pods.terminate.priority")
-	checkPriorityConfig(cfg.Alarms.Pods.Waiting.Priority, "--alarms.pods.waiting.priority")
-	checkPriorityConfig(cfg.Alarms.Pods.Restarts.Priority, "--alarms.pods.restarts.priority")
-	checkPriorityConfig(cfg.Alarms.Pods.Resources.CPU.Priority, "--alarms.pods.resources.cpu.priority")
-	checkPriorityConfig(cfg.Alarms.Pods.Resources.Memory.Priority, "--alarms.pods.resources.memory.priority")
-	checkPriorityConfig(cfg.Alarms.Nodes.Terminate.Priority, "--alarms.nodes.terminate.priority")
-	checkPriorityConfig(cfg.Alarms.Nodes.Resources.CPU.Priority, "--alarms.nodes.resources.cpu.priority")
-	checkPriorityConfig(cfg.Alarms.Nodes.Resources.Memory.Priority, "--alarms.nodes.resources.memory.priority")
-
-	checkThresholdConfig(cfg.Alarms.Pods.Resources.CPU.Threshold, 1, 100, "--alarms.pods.resources.cpu.threshold")
-	checkThresholdConfig(cfg.Alarms.Pods.Resources.Memory.Threshold, 1, 100, "--alarms.pods.resources.memory.threshold")
-	checkThresholdConfig(cfg.Alarms.Pods.Restarts.Threshold, 1, 1000000, "--alarms.pods.restarts.threshold")
-	checkThresholdConfig(cfg.Alarms.Pods.Resources.CPU.Threshold, 1, 100, "--alarms.nodes.resources.cpu.threshold")
-	checkThresholdConfig(cfg.Alarms.Pods.Resources.Memory.Threshold, 1, 100, "--alarms.nodes.resources.memory.threshold")
-
 	return cfg
-}
-
-func checkPriorityConfig(priority string, flag string) {
-	if priority != "HIGH" && priority != "LOW" {
-		log.Fatal().Msg(fmt.Sprintf("Invalid %s flag value.", flag))
-	}
-}
-
-func checkThresholdConfig(threshold int32, min int32, max int32, flag string) {
-	if threshold < min || threshold > max {
-		log.Fatal().Msg(fmt.Sprintf("Invalid %s flag value (min=%d max=%d).", flag, min, max))
-	}
 }
