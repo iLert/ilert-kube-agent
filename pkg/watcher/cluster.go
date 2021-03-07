@@ -7,6 +7,7 @@ import (
 	"github.com/iLert/ilert-go"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/incident"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -54,6 +55,7 @@ func analyzeClusterStatus(cfg *config.Config) error {
 
 	_, err := cfg.KubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to get nodes from apiserver")
 		if incidentRefClient == nil && cfg.Alarms.Cluster.Enabled {
 			summary := fmt.Sprintf("Failed to get nodes from apiserver %s", clusterKey)
 			details := getConfigDetails(cfg)
@@ -76,6 +78,7 @@ func analyzeClusterStatus(cfg *config.Config) error {
 	path := "/healthz"
 	content, err := cfg.KubeClient.Discovery().RESTClient().Get().AbsPath(path).DoRaw()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to health info from apiserver")
 		return err
 	}
 

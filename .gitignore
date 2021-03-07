@@ -19,3 +19,5 @@ bin/
 data/
 
 .DS_Store
+.serverless/
+node_modules/

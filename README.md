@@ -54,7 +54,6 @@ helm upgrade --install --namespace kube-systems \
 ```hcl
 module "ilert-kube-agent" {
   source  = "iLert/ilert-kube-agent/kubernetes"
-  version = "0.3.7"
   replicas = 2
   api_key = "<YOUR KEY HERE>"
 }
@@ -67,9 +66,13 @@ terraform init
 terraform apply
 ```
 
+### Lambda Deployment
+
+Follow [this guide](deployment/lambda/README.md) please.
+
 ### Raw YAML Deployment
 
-To deploy this project, you can simply run `kubectl apply -f examples/standard` and a
+To deploy this project, you can simply run `kubectl apply -f deployment/standard` and a
 Kubernetes service and deployment will be created.
 
 ## Getting help

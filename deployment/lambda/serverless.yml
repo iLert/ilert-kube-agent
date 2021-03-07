@@ -1,0 +1,97 @@
+service: ilert-kube-agent-serverless
+
+plugins:
+  - serverless-pseudo-parameters
+  - serverless-prune-plugin
+
+custom:
+  prune:
+    automatic: true
+    number: 3
+
+package:
+  individually: true
+  exclude:
+    - ./**
+
+provider:
+  name: aws
+  runtime: go1.x
+  stage: ${opt:stage, "dev"}
+  region: ${opt:region, "eu-central-1"}
+  memorySize: 128
+  timeout: 30
+  versionFunctions: true
+  lambdaHashingVersion: 20201221
+  tracing:
+    apiGateway: false
+    lambda: false
+  logRetentionInDays: 1
+
+functions:
+  ilert-kube-agent-serverless:
+    handler: bin/ilert-kube-agent-serverless
+    package:
+      include:
+        - ./bin/ilert-kube-agent-serverless
+    description: ilert-kube-agent serverless run
+    role: ilertKubeAgent
+    events:
+      - schedule:
+          name: ilert-kube-agent-serverless
+          description: ilert-kube-agent-serverless scheduled run
+          rate: rate(1 minute)
+    environment:
+      ROLE: !GetAtt ilertKubeAgent.Arn
+      REGION: ${opt:region, "eu-central-1"}
+      CLUSTER_NAME: ${opt:cluster}
+      ILERT_API_KEY: ${opt:api-key}
+
+resources:
+  Resources:
+    ilertKubeAgent:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ilert-kube-agent
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: sts:AssumeRole
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+            - Effect: Allow
+              Action: sts:AssumeRole
+              Principal:
+                AWS:
+                  !Join [
+                    ":",
+                    ["arn:aws:iam:", { Ref: "AWS::AccountId" }, "root"],
+                  ]
+        Policies:
+          - PolicyName: ilert-kube-agent
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:CreateLogGroup
+                  Resource: "*"
+                - Effect: Allow
+                  Action: logs:PutLogEvents
+                  Resource:
+                    !Join [
+                      ":",
+                      [
+                        "arn:aws:logs",
+                        { "Ref": "AWS::Region" },
+                        { Ref: "AWS::AccountId" },
+                        "log-group",
+                        "/aws/lambda/ilert-kube-agent-serverless*",
+                      ],
+                    ]
+                - Effect: Allow
+                  Action: eks:*
+                  Resource: "*"

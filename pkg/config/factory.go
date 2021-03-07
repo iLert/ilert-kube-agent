@@ -56,3 +56,15 @@ func (cfg *Config) initializeClients() {
 		}
 	}
 }
+
+func (cfg *Config) Print() {
+	log.Info().Interface("config", struct {
+		Settings ConfigSettings
+		Alarms   ConfigAlarms
+		Links    ConfigLinks
+	}{
+		Settings: cfg.Settings,
+		Alarms:   cfg.Alarms,
+		Links:    cfg.Links,
+	}).Msg("Starting with config")
+}

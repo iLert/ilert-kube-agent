@@ -3,6 +3,8 @@ module github.com/iLert/ilert-kube-agent
 go 1.15
 
 require (
+	github.com/aws/aws-lambda-go v1.13.3
+	github.com/aws/aws-sdk-go v1.37.25
 	github.com/cbroglie/mustache v1.2.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gin-contrib/logger v0.0.2
@@ -19,4 +21,5 @@ require (
 	k8s.io/client-go v0.17.7
 	k8s.io/klog/v2 v2.5.0
 	k8s.io/metrics v0.17.7
+	sigs.k8s.io/aws-iam-authenticator v0.5.2
 )
