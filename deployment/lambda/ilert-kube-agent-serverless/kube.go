@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/aws-iam-authenticator/pkg/token"
 )
 
-func getKubeConfig(clusterName string, region string, role string) (*rest.Config, error) {
+func getKubeConfig(clusterName string, region string) (*rest.Config, error) {
 	if clusterName == "" {
 		err := errors.New("Cluster name is required")
 		log.Error().Err(err).Msg("Failed to create kube client")
@@ -22,12 +22,6 @@ func getKubeConfig(clusterName string, region string, role string) (*rest.Config
 
 	if region == "" {
 		err := errors.New("Region is required")
-		log.Error().Err(err).Msg("Failed to create kube client")
-		return nil, err
-	}
-
-	if role == "" {
-		err := errors.New("Role is required")
 		log.Error().Err(err).Msg("Failed to create kube client")
 		return nil, err
 	}

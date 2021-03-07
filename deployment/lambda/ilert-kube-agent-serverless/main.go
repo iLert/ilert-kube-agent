@@ -20,11 +20,10 @@ func main() {
 func run(_ context.Context, event events.CloudWatchEvent) error {
 	clusterName := utils.GetEnv("CLUSTER_NAME", "")
 	region := utils.GetEnv("REGION", "")
-	role := utils.GetEnv("ROLE", "")
 
 	cfg := config.GetDefaultConfig()
 
-	kubeConfig, err := getKubeConfig(clusterName, region, role)
+	kubeConfig, err := getKubeConfig(clusterName, region)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get kube config")
 		return err

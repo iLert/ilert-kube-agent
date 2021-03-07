@@ -42,7 +42,6 @@ functions:
           description: ilert-kube-agent-serverless scheduled run
           rate: rate(1 minute)
     environment:
-      ROLE: !GetAtt ilertKubeAgent.Arn
       REGION: ${opt:region, "eu-central-1"}
       CLUSTER_NAME: ${opt:cluster}
       ILERT_API_KEY: ${opt:api-key}
