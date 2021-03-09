@@ -1,4 +1,4 @@
-## v1.7.1 / 2021-03-07
+## v1.7.1 / 2021-03-09
 
 - [ENHANCEMENT] Add Evicted state to pod check
 
