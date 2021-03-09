@@ -27,9 +27,10 @@ const (
 	Error              = "Error"
 	ContainerCannotRun = "ContainerCannotRun"
 	DeadlineExceeded   = "DeadlineExceeded"
+	Evicted            = "Evicted"
 )
 
-var containerTerminatedReasons = []string{Terminated, OOMKilled, Error, ContainerCannotRun, DeadlineExceeded}
+var containerTerminatedReasons = []string{Terminated, OOMKilled, Error, ContainerCannotRun, DeadlineExceeded, Evicted}
 
 // Start starts watcher
 func Start(cfg *config.Config) {

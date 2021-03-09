@@ -19,7 +19,7 @@ Simply build and run ilert-kube-agent to get Kubernetes cluster alarms.
 | Flag | Description |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--alarms.cluster.enabled` | Enables cluster alarms. Triggers an alarm if any cluster problem occurred e.g. API server not available [Default: true] |
-| `--alarms.pods.terminate.enabled` | Enables terminate pod alarms. Triggers an alarm if any pod terminated e.g. Terminated, OOMKilled, Error, ContainerCannotRun, DeadlineExceeded [Default: true] |
+| `--alarms.pods.terminate.enabled` | Enables terminate pod alarms. Triggers an alarm if any pod terminated e.g. Terminated, OOMKilled, Error, ContainerCannotRun, DeadlineExceeded, Evicted [Default: true] |
 | `--alarms.pods.waiting.enabled` | Enables waiting pod alarms. Triggers an alarm if any pod in waiting status e.g. CrashLoopBackOff, ErrImagePull, ImagePullBackOff, CreateContainerConfigError, InvalidImageName, CreateContainerError [Default: true] |
 | `--alarms.pods.restarts.enabled` | Enables restarts pod alarms. Triggers an alarm if any pod restarts count reached threshold [Default: true] |
 | `--alarms.pods.resources.cpu.enabled` | Enables pod CPU resource alarms. Triggers an alarm if any pod reaches CPU limit [Default: true] |

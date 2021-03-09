@@ -1,3 +1,7 @@
+## v1.7.1 / 2021-03-07
+
+- [ENHANCEMENT] Add Evicted state to pod check
+
 ## v1.7.0 / 2021-03-07
 
 - [ENHANCEMENT] Add serverless deployment
