@@ -38,7 +38,7 @@ func main() {
 
 	srg := &storage.Storage{}
 	srg.Init()
-	router := router.Setup(srg)
+	router := router.Setup(srg, cfg)
 
 	srv := &http.Server{
 		Handler:      router,

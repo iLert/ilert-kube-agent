@@ -8,11 +8,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/iLert/ilert-kube-agent/pkg/collector"
+	"github.com/iLert/ilert-kube-agent/pkg/commander"
+	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/storage"
 )
 
 // Setup init new router
-func Setup(srg *storage.Storage) *gin.Engine {
+func Setup(srg *storage.Storage, cfg *config.Config) *gin.Engine {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -39,6 +41,8 @@ func Setup(srg *storage.Storage) *gin.Engine {
 		return
 	})
 	router.GET("/api/health", healthHandler)
+
+	commander.SetUpMcpRoutes(router, cfg)
 
 	return router
 }
