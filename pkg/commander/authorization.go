@@ -10,7 +10,7 @@ import (
 
 func CheckAuthorization(ctx *gin.Context, cfg *config.Config) error {
 	authorizationHeader := ctx.Request.Header.Get("Authorization")
-	if authorizationHeader == "" || authorizationHeader != "Bearer "+cfg.Settings.APIKey {
+	if authorizationHeader == "" || authorizationHeader != "Bearer "+cfg.Settings.AuthorizationKey {
 		ctx.String(http.StatusUnauthorized, "Unauthorized")
 		return errors.New("unauthorized")
 	}
