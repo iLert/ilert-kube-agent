@@ -14,6 +14,8 @@ func PodStatusesHandler(ctx *gin.Context, cfg *config.Config) {
 	pods, err := podInterface.List(metav1.ListOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get pods from apiserver")
+		ctx.String(http.StatusInternalServerError, "Internal server error")
+		return
 	}
 
 	podStatuses := make([]PodStatus, 0, len(pods.Items))
