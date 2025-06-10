@@ -8,6 +8,7 @@ import (
 func SetUpMcpRoutes(router *gin.Engine, cfg *config.Config) {
 
 	router.GET("/api/pod-statuses", AuthorizedHandler(cfg, PodStatusesHandler))
+	router.GET("/api/pod-logs", AuthorizedHandler(cfg, PodLogsHandler))
 }
 
 func AuthorizedHandler(cfg *config.Config, handler func(*gin.Context, *config.Config)) func(*gin.Context) {
