@@ -14,3 +14,8 @@ type ContainerStatus struct {
 	State v1.ContainerState `json:"state,omitempty"`
 	Ready bool              `json:"ready"`
 }
+
+type ContainerResourceRequirements struct {
+	Name      string                  `json:"name"`
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+}
