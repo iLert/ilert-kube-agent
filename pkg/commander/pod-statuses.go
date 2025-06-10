@@ -10,8 +10,7 @@ import (
 )
 
 func PodStatusesHandler(ctx *gin.Context, cfg *config.Config) {
-	podInterface := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll)
-	pods, err := podInterface.List(metav1.ListOptions{})
+	pods, err := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get pods from apiserver")
 		ctx.String(http.StatusInternalServerError, "Internal server error")
