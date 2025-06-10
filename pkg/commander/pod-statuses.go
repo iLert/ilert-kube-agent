@@ -1,6 +1,8 @@
 package commander
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/rs/zerolog/log"
@@ -16,12 +18,23 @@ func PodStatusesHandler(ctx *gin.Context, cfg *config.Config) {
 
 	podStatuses := make([]PodStatus, 0, len(pods.Items))
 	for _, pod := range pods.Items {
+		containers := make([]ContainerStatus, 0, len(pod.Status.ContainerStatuses))
+
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			containers = append(containers, ContainerStatus{
+				Name:  containerStatus.Name,
+				State: containerStatus.State,
+				Ready: containerStatus.Ready,
+			})
+		}
+
 		podStatuses = append(podStatuses, PodStatus{
-			Name:      pod.Name,
-			Namespace: pod.Namespace,
-			Status:    pod.Status.Phase,
+			Name:       pod.Name,
+			Namespace:  pod.Namespace,
+			Status:     pod.Status.Phase,
+			Containers: containers,
 		})
 	}
 
-	ctx.PureJSON(200, podStatuses)
+	ctx.PureJSON(http.StatusOK, podStatuses)
 }
