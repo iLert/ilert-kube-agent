@@ -16,7 +16,7 @@ import (
 )
 
 func PodLogsHandler(ctx *gin.Context, cfg *config.Config) {
-	podNameQuery := ctx.Query("pod-name")
+	podQuery := ctx.Query("pod")
 	container := ctx.Query("container")
 	tailLinesQuery := ctx.Query("tail-lines")
 	sinceSecondsQuery := ctx.Query("since-seconds")
@@ -64,14 +64,14 @@ func PodLogsHandler(ctx *gin.Context, cfg *config.Config) {
 
 	var selectedPod *v1.Pod
 	for _, pod := range pods.Items {
-		if pod.Name == podNameQuery {
+		if pod.Name == podQuery {
 			selectedPod = &pod
 			break
 		}
 	}
 
 	if selectedPod == nil {
-		log.Warn().Msg(fmt.Sprintf("Pod %s does not exist", podNameQuery))
+		log.Warn().Msg(fmt.Sprintf("Pod %s does not exist", podQuery))
 		ctx.String(http.StatusBadRequest, "Pod does not exist")
 		return
 	}
@@ -84,7 +84,7 @@ func PodLogsHandler(ctx *gin.Context, cfg *config.Config) {
 	})
 	podLogs, err := req.Stream()
 	if err != nil {
-		log.Error().Err(err).Msg(fmt.Sprintf(`Failed to stream logs, pod: "%s", container: "%s"`, podNameQuery, container))
+		log.Error().Err(err).Msg(fmt.Sprintf(`Failed to stream logs, pod: "%s", container: "%s"`, podQuery, container))
 		ctx.String(http.StatusInternalServerError, "Internal server error")
 		return
 	}
@@ -93,7 +93,7 @@ func PodLogsHandler(ctx *gin.Context, cfg *config.Config) {
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, podLogs)
 	if err != nil {
-		log.Error().Err(err).Msg(fmt.Sprintf(`Failed to copy logs, pod: "%s", container: "%s"`, podNameQuery, container))
+		log.Error().Err(err).Msg(fmt.Sprintf(`Failed to copy logs, pod: "%s", container: "%s"`, podQuery, container))
 		ctx.String(http.StatusInternalServerError, "Internal server error")
 		return
 	}
