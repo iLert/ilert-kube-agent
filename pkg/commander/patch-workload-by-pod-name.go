@@ -61,6 +61,10 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits) error {
 	workload, err := findWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
+		log.Error().Err(err).
+			Str("pod_name", podName).
+			Str("namespace", namespace).
+			Msg("failed to find workload for pod")
 		return fmt.Errorf("failed to find workload for pod %s: %v", podName, err)
 	}
 
@@ -70,6 +74,10 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 	case "statefulset":
 		return setStatefulSetResources(clientset, namespace, workload.Name, resources)
 	default:
+		log.Error().
+			Str("pod_name", podName).
+			Str("namespace", namespace).
+			Msg("unsupported workload type")
 		return fmt.Errorf("unsupported workload type: %s", workload.Type)
 	}
 }
@@ -77,6 +85,10 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string) (*WorkloadInfo, error) {
 	pod, err := clientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
 	if err != nil {
+		log.Error().Err(err).
+			Str("pod_name", podName).
+			Str("namespace", namespace).
+			Msg("failed to get pod")
 		return nil, fmt.Errorf("failed to get pod: %v", err)
 	}
 
@@ -105,6 +117,10 @@ func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName s
 func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *ResourceLimits) error {
 	deployment, err := clientset.AppsV1().Deployments(namespace).Get(deploymentName, metav1.GetOptions{})
 	if err != nil {
+		log.Error().Err(err).
+			Str("deployment_name", deploymentName).
+			Str("namespace", namespace).
+			Msg("failed to get deployment")
 		return fmt.Errorf("failed to get deployment: %v", err)
 	}
 
@@ -120,6 +136,10 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 
 	patchBytes, err := json.Marshal(patches)
 	if err != nil {
+		log.Error().Err(err).
+			Str("deployment_name", deploymentName).
+			Str("namespace", namespace).
+			Msg("failed to marshal patches")
 		return fmt.Errorf("failed to marshal patches: %v", err)
 	}
 
@@ -130,6 +150,10 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefulSetName string, resources *ResourceLimits) error {
 	statefulSet, err := clientset.AppsV1().StatefulSets(namespace).Get(statefulSetName, metav1.GetOptions{})
 	if err != nil {
+		log.Error().Err(err).
+			Str("statefulset_name", statefulSetName).
+			Str("namespace", namespace).
+			Msg("failed to get statefulset")
 		return fmt.Errorf("failed to get statefulset: %v", err)
 	}
 
@@ -145,6 +169,10 @@ func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefu
 
 	patchBytes, err := json.Marshal(patches)
 	if err != nil {
+		log.Error().Err(err).
+			Str("statefulset_name", statefulSetName).
+			Str("namespace", namespace).
+			Msg("failed to marshal patches")
 		return fmt.Errorf("failed to marshal patches: %v", err)
 	}
 
@@ -206,7 +234,6 @@ func createContainerResourcePatches(containerIndex int, container *corev1.Contai
 			"value": limits,
 		})
 	} else {
-		// Update individual limit fields
 		if resources.CPULimit != nil {
 			patches = append(patches, map[string]interface{}{
 				"op":    "replace",
