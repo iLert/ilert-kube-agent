@@ -31,7 +31,7 @@ func GetPodLogsHandler(ctx *gin.Context, cfg *config.Config) {
 	limit := int64(100)
 	limitStr := ctx.Query("limit")
 	newLimit, err := strconv.ParseInt(limitStr, 10, 64)
-	if err == nil && newLimit > 0 && newLimit <= 500 {
+	if err == nil && newLimit >= 10 && newLimit <= 500 {
 		limit = newLimit
 	}
 
