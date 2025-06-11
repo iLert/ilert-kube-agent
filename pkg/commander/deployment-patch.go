@@ -14,34 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func DeploymentPatchCpuRequestHandler(ctx *gin.Context, cfg *config.Config) {
-	container := ctx.Query("container")
-	cpuRequest := ctx.Query("cpu-request")
-
-	selectedDeployment := getDeployment(ctx, cfg)
-	if selectedDeployment == nil {
-		return
-	}
-
-	patchData := []byte(`{"spec":{"template":{"spec":{"containers":[{"name":"` + container + `","resources":{"requests":{"cpu":"` + cpuRequest + `"}}}]}}}}`)
-	patchDeployment(ctx, cfg, selectedDeployment, patchData)
-}
-
-func DeploymentPatchMemoryRequestHandler(ctx *gin.Context, cfg *config.Config) {
-	container := ctx.Query("container")
-	memoryRequest := ctx.Query("memory-request")
-
-	selectedDeployment := getDeployment(ctx, cfg)
-	if selectedDeployment == nil {
-		return
-	}
-
-	patchData := []byte(`{"spec":{"template":{"spec":{"containers":[{"name":"` + container + `","resources":{"requests":{"memory":"` + memoryRequest + `"}}}]}}}}`)
-	patchDeployment(ctx, cfg, selectedDeployment, patchData)
-}
-
 func DeploymentPatchCpuLimitHandler(ctx *gin.Context, cfg *config.Config) {
 	container := ctx.Query("container")
+	cpuRequest := ctx.Query("cpu-request")
 	cpuLimit := ctx.Query("cpu-limit")
 
 	selectedDeployment := getDeployment(ctx, cfg)
@@ -49,12 +24,13 @@ func DeploymentPatchCpuLimitHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	patchData := []byte(`{"spec":{"template":{"spec":{"containers":[{"name":"` + container + `","resources":{"limits":{"cpu":"` + cpuLimit + `"}}}]}}}}`)
+	patchData := []byte(`{"spec":{"template":{"spec":{"containers":[{"name":"` + container + `","resources":{"requests":{"cpu":"` + cpuRequest + `"},"limits":{"cpu":"` + cpuLimit + `"}}}]}}}}`)
 	patchDeployment(ctx, cfg, selectedDeployment, patchData)
 }
 
 func DeploymentPatchMemoryLimitHandler(ctx *gin.Context, cfg *config.Config) {
 	container := ctx.Query("container")
+	memoryRequest := ctx.Query("memory-request")
 	memoryLimit := ctx.Query("memory-limit")
 
 	selectedDeployment := getDeployment(ctx, cfg)
@@ -62,35 +38,66 @@ func DeploymentPatchMemoryLimitHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	patchData := []byte(`{"spec":{"template":{"spec":{"containers":[{"name":"` + container + `","resources":{"limits":{"memory":"` + memoryLimit + `"}}}]}}}}`)
+	patchData := []byte(`{"spec":{"template":{"spec":{"containers":[{"name":"` + container + `","resources":{"requests":{"memory":"` + memoryRequest + `","limits":{"memory":"` + memoryLimit + `"}}}}]}}}}`)
 	patchDeployment(ctx, cfg, selectedDeployment, patchData)
 }
 
 func getDeployment(ctx *gin.Context, cfg *config.Config) *appv1.Deployment {
-	deploymentQuery := ctx.Query("deployment")
+	namespace := ctx.Query("namespace")
+	podName := ctx.Query("pod-name")
 
-	deployments, err := cfg.KubeClient.AppsV1().Deployments(metav1.NamespaceAll).List(metav1.ListOptions{})
+	pod, err := cfg.KubeClient.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to get deployments from apiserver")
-		ctx.String(http.StatusInternalServerError, "Internal server error")
+		msg := fmt.Sprintf("Failed to get pod with name '%s' from apiserver", podName)
+		log.Warn().Err(err).Msg(msg)
+		ctx.String(http.StatusBadRequest, msg+"\n"+err.Error())
 		return nil
 	}
 
-	var selectedDeployment *appv1.Deployment
-	for _, deployment := range deployments.Items {
-		if deployment.Name == deploymentQuery {
-			selectedDeployment = &deployment
-			break
-		}
-	}
-
-	if selectedDeployment == nil {
-		log.Warn().Msg(fmt.Sprintf("Deployment %s does not exist", deploymentQuery))
-		ctx.String(http.StatusBadRequest, "Deployment does not exist")
+	podTemplateHash, ok := pod.Labels["pod-template-hash"]
+	if !ok {
+		msg := fmt.Sprintf("Failed to get pod-template-hash of pod '%s'", podName)
+		log.Warn().Msg(msg)
+		ctx.String(http.StatusBadRequest, msg)
 		return nil
 	}
 
-	return selectedDeployment
+	labelSelector := "pod-template-hash=" + podTemplateHash
+	replicaSetList, err := cfg.KubeClient.AppsV1().ReplicaSets(namespace).List(metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		msg := fmt.Sprintf("Failed to get replica set list with label selector '%s'", labelSelector)
+		log.Warn().Err(err).Msg(msg)
+		ctx.String(http.StatusBadRequest, msg+"\n"+err.Error())
+		return nil
+	}
+
+	if len(replicaSetList.Items) == 0 {
+		msg := fmt.Sprintf("No replica set with pod-template-hash '%s'", podTemplateHash)
+		log.Warn().Msg(msg)
+		ctx.String(http.StatusBadRequest, msg)
+		return nil
+	}
+	replicaSet := replicaSetList.Items[0]
+	if len(replicaSet.OwnerReferences) == 0 {
+		msg := fmt.Sprintf("No ownerships of replica set with name '%s'", replicaSet.Name)
+		log.Warn().Msg(msg)
+		ctx.String(http.StatusBadRequest, msg)
+		return nil
+	}
+
+	deploymentReference := replicaSet.OwnerReferences[0]
+
+	deployment, err := cfg.KubeClient.AppsV1().Deployments(metav1.NamespaceAll).Get(deploymentReference.Name, metav1.GetOptions{})
+	if err != nil {
+		msg := fmt.Sprintf("Failed to get deployment with name '%s'", deploymentReference.Name)
+		log.Warn().Err(err).Msg(msg)
+		ctx.String(http.StatusBadRequest, msg+"\n"+err.Error())
+		return nil
+	}
+
+	return deployment
 }
 
 func patchDeployment(ctx *gin.Context, cfg *config.Config, deployment *appv1.Deployment, patchData []byte) {
