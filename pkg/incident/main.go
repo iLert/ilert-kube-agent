@@ -1,9 +1,8 @@
 package incident
 
 import (
+	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,57 +17,54 @@ import (
 
 var ilertClient *ilert.Client
 
-// CreateEvent creates an incident event
+// CreateEvent creates an alert event
 func CreateEvent(
 	cfg *config.Config,
 	links []ilert.IncidentLink,
-	incidentKey string,
+	alertKey string,
 	summary string,
 	details string,
 	eventType string,
 	priority string,
-) *int64 {
+	labels map[string]string,
+) error {
 	if ilertClient == nil {
 		ilertClient = ilert.NewClient(ilert.WithUserAgent(fmt.Sprintf("ilert-kube-agent/%s", shared.Version)))
 	}
 
 	if cfg.Settings.APIKey == "" {
-		log.Error().Msg("Failed to create an incident event. API key is required")
-		return nil
+		log.Error().Msg("Failed to create an alert event. API key is required")
+		return errors.New("Failed to create an alert event. API key is required")
 	}
 
 	event := &ilert.Event{
-		IncidentKey: incidentKey,
+		IncidentKey: alertKey,
 		Summary:     summary,
 		Details:     details,
 		EventType:   eventType,
 		APIKey:      cfg.Settings.APIKey,
 		Priority:    priority,
 		Links:       links,
+		CustomDetails: map[string]interface{}{
+			"labels": labels,
+		},
 	}
 
-	log.Debug().Interface("event", event).Msg("Creating incident event")
+	log.Debug().Interface("event", event).Msg("Creating alert event")
 
-	output, err := ilertClient.CreateEvent(&ilert.CreateEventInput{
+	_, err := ilertClient.CreateEvent(&ilert.CreateEventInput{
 		Event: event,
 		URL:   utils.String(fmt.Sprintf("https://api.ilert.com/api/v1/events/kubernetes/%s", cfg.Settings.APIKey)),
 	})
 
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to create incident event")
-		return nil
+		log.Error().Err(err).Msg("Failed to create alert event")
+		return err
 	}
 
-	incidentIDStr := strings.ReplaceAll(output.EventResponse.IncidentURL, "https://api.ilert.com/api/v1/incidents/", "")
-	incidentID, err := strconv.ParseInt(incidentIDStr, 10, 64)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to convert incident id to int64")
-		return nil
-	}
+	log.Info().Str("summary", summary).Str("alert_key", alertKey).Msg("Alert event created")
 
-	log.Info().Int64("incident_id", incidentID).Msg("Incident event created")
-
-	return utils.Int64(incidentID)
+	return nil
 }
 
 // CreateIncidentRef definition

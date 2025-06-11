@@ -29,6 +29,10 @@ func getConfigDetails(cfg *config.Config) string {
 func analyzeClusterStatus(cfg *config.Config) error {
 	clusterKey := getClusterKey(cfg)
 
+	labels := map[string]string{
+		"cluster": clusterKey,
+	}
+
 	// Init check
 	incidentKeyInit := fmt.Sprintf("%s-init", clusterKey)
 	incidentRefInit := incident.GetIncidentRef(cfg.AgentKubeClient, incidentKeyInit, cfg.Settings.Namespace)
@@ -37,16 +41,14 @@ func analyzeClusterStatus(cfg *config.Config) error {
 		summary := fmt.Sprintf("Cluster connection is not established: %s", clusterKey)
 		if incidentRefInit == nil && cfg.Alarms.Cluster.Enabled {
 			details := getConfigDetails(cfg)
-			incidentID := incident.CreateEvent(cfg, nil, incidentKeyInit, summary, details, ilert.EventTypes.Alert, ilert.IncidentPriorities.High)
-			incident.CreateIncidentRef(cfg.AgentKubeClient, incidentKeyInit, cfg.Settings.Namespace, incidentID, summary, details, "cluster-init")
+			incident.CreateEvent(cfg, nil, incidentKeyInit, summary, details, ilert.EventTypes.Alert, ilert.IncidentPriorities.High, labels)
 		}
 		return errors.New(summary)
 	}
 
 	if incidentRefInit != nil {
 		summary := fmt.Sprintf("Cluster connection is established: %s", clusterKey)
-		incident.CreateEvent(cfg, nil, incidentKeyInit, summary, "", ilert.EventTypes.Resolve, "")
-		incident.DeleteIncidentRef(cfg.AgentKubeClient, incidentKeyInit, cfg.Settings.Namespace)
+		incident.CreateEvent(cfg, nil, incidentKeyInit, summary, "", ilert.EventTypes.Resolve, "", labels)
 	}
 
 	// Client check
@@ -60,16 +62,14 @@ func analyzeClusterStatus(cfg *config.Config) error {
 			summary := fmt.Sprintf("Failed to get nodes from apiserver %s", clusterKey)
 			details := getConfigDetails(cfg)
 			details += fmt.Sprintf("\n\nError: \n%v", err.Error())
-			incidentID := incident.CreateEvent(cfg, nil, incidentKeyClient, summary, details, ilert.EventTypes.Alert, ilert.IncidentPriorities.High)
-			incident.CreateIncidentRef(cfg.AgentKubeClient, incidentKeyClient, cfg.Settings.Namespace, incidentID, summary, details, "cluster-client")
+			incident.CreateEvent(cfg, nil, incidentKeyClient, summary, details, ilert.EventTypes.Alert, ilert.IncidentPriorities.High, labels)
 		}
 		return err
 	}
 
 	if incidentRefClient != nil {
 		summary := fmt.Sprintf("Cluster client is ok: %s", clusterKey)
-		incident.CreateEvent(cfg, nil, incidentKeyClient, summary, "", ilert.EventTypes.Resolve, "")
-		incident.DeleteIncidentRef(cfg.AgentKubeClient, incidentKeyClient, cfg.Settings.Namespace)
+		incident.CreateEvent(cfg, nil, incidentKeyClient, summary, "", ilert.EventTypes.Resolve, "", labels)
 	}
 
 	// CLuster health check
@@ -87,16 +87,14 @@ func analyzeClusterStatus(cfg *config.Config) error {
 		summary := fmt.Sprintf("Cluster is not healthy: %s", clusterKey)
 		if incidentRefHealth == nil && cfg.Alarms.Cluster.Enabled {
 			details := getConfigDetails(cfg)
-			incidentID := incident.CreateEvent(cfg, nil, incidentKeyHealth, summary, details, ilert.EventTypes.Alert, ilert.IncidentPriorities.High)
-			incident.CreateIncidentRef(cfg.AgentKubeClient, incidentKeyHealth, cfg.Settings.Namespace, incidentID, summary, details, "cluster-health")
+			incident.CreateEvent(cfg, nil, incidentKeyHealth, summary, details, ilert.EventTypes.Alert, ilert.IncidentPriorities.High, labels)
 		}
 		return errors.New(summary)
 	}
 
 	if incidentRefHealth != nil {
 		summary := fmt.Sprintf("Cluster is healthy: %s", clusterKey)
-		incident.CreateEvent(cfg, nil, incidentKeyHealth, summary, "", ilert.EventTypes.Resolve, "")
-		incident.DeleteIncidentRef(cfg.AgentKubeClient, incidentKeyHealth, cfg.Settings.Namespace)
+		incident.CreateEvent(cfg, nil, incidentKeyHealth, summary, "", ilert.EventTypes.Resolve, "", labels)
 	}
 
 	return nil

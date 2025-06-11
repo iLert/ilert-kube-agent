@@ -84,6 +84,11 @@ func (cfg *Config) Load() {
 		cfg.Settings.Log.Level = logLevelEnv
 	}
 
+	httpAuthorizationKeyEnv := utils.GetEnv("HTTP_AUTHORIZATION_KEY", "")
+	if httpAuthorizationKeyEnv != "" {
+		cfg.Settings.HttpAuthorizationKey = httpAuthorizationKeyEnv
+	}
+
 	cfg.Validate()
 
 	// Base64 encoded kubeconfig

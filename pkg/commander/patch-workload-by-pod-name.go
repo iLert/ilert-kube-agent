@@ -55,6 +55,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
+	ctx.PureJSON(http.StatusOK, gin.H{})
 }
 
 func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits) error {

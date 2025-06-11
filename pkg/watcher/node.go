@@ -71,18 +71,31 @@ func analyzeNodeStatus(node *api.Node, cfg *config.Config) {
 	nodeKey := getNodeKey(node)
 	incidentRef := incident.GetIncidentRef(cfg.AgentKubeClient, nodeKey, cfg.Settings.Namespace)
 
+	labels := map[string]string{
+		"namespace":       node.GetNamespace(),
+		"name":            node.GetName(),
+		"resourceVersion": node.GetResourceVersion(),
+		"clusterName":     node.GetClusterName(),
+	}
+
 	if node.Status.Phase == api.NodeTerminated && cfg.Alarms.Nodes.Terminate.Enabled && incidentRef == nil {
 		summary := fmt.Sprintf("Node %s terminated", node.GetName())
 		details := getNodeDetails(cfg.KubeClient, node)
 		links := getNodeLinks(cfg, node)
-		incidentID := incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Terminate.Priority)
-		incident.CreateIncidentRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details, "terminate")
+		incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Terminate.Priority, labels)
 	}
 }
 
 func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 	if !cfg.Alarms.Nodes.Resources.Enabled {
 		return nil
+	}
+
+	labels := map[string]string{
+		"namespace":       node.GetNamespace(),
+		"name":            node.GetName(),
+		"resourceVersion": node.GetResourceVersion(),
+		"clusterName":     node.GetClusterName(),
 	}
 	nodeKey := getNodeKey(node)
 	incidentRef := incident.GetIncidentRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace)
@@ -124,8 +137,7 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 					summary := fmt.Sprintf("Node %s CPU limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.CPU.Threshold)
 					details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 					links := getNodeLinks(cfg, node)
-					incidentID := incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.CPU.Priority)
-					incident.CreateIncidentRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details, "resources")
+					incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.CPU.Priority, labels)
 				}
 			}
 		}
@@ -145,16 +157,14 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 					summary := fmt.Sprintf("Node %s memory limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.Memory.Threshold)
 					details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 					links := getNodeLinks(cfg, node)
-					incidentID := incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Memory.Priority)
-					incident.CreateIncidentRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace, incidentID, summary, details, "resources")
+					incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Memory.Priority, labels)
 				}
 			}
 		}
 	}
 
 	if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 && incidentRef.Spec.Type == "resources" {
-		incident.CreateEvent(cfg, nil, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, "")
-		incident.DeleteIncidentRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace)
+		incident.CreateEvent(cfg, nil, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, "", labels)
 	}
 	return nil
 }

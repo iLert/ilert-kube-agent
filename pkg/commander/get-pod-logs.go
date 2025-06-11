@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
@@ -27,9 +28,16 @@ func GetPodLogsHandler(ctx *gin.Context, cfg *config.Config) {
 	if ctx.Query("previous") == "true" {
 		previous = true
 	}
+	limit := int64(100)
+	limitStr := ctx.Query("limit")
+	newLimit, err := strconv.ParseInt(limitStr, 10, 64)
+	if err == nil && newLimit > 0 && newLimit <= 500 {
+		limit = newLimit
+	}
 
 	req := cfg.KubeClient.CoreV1().Pods(namespace).GetLogs(podName, &v1.PodLogOptions{
-		Previous: previous,
+		Previous:  previous,
+		TailLines: Int64(limit),
 	})
 	podLogs, err := req.Stream()
 	if err != nil {
@@ -54,4 +62,8 @@ func GetPodLogsHandler(ctx *gin.Context, cfg *config.Config) {
 	}
 
 	ctx.String(http.StatusOK, buf.String())
+}
+
+func Int64(v int64) *int64 {
+	return &v
 }

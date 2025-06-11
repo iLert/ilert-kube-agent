@@ -33,10 +33,10 @@ spec:
             - name: PORT
               value: "9092"
             - name: ILERT_API_KEY
-            - name: ENABLE_IN_CLUSTER_API
-              value: "true"
             - name: LOG_LEVEL
               value: "info"
+            # - name: HTTP_AUTHORIZATION_KEY
+            #   value: "fake"
           ports:
             - containerPort: 9092
               name: http-metrics

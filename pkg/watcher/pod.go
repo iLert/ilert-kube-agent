@@ -116,6 +116,16 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 	podKey := getPodKey(pod)
 	incidentRef := incident.GetIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace())
 
+	labels := map[string]string{
+		"namespace":       pod.GetNamespace(),
+		"name":            pod.GetName(),
+		"resourceVersion": pod.GetResourceVersion(),
+		"clusterName":     pod.GetClusterName(),
+		"app":             getLabel(pod, "app"),
+		"stage":           getLabel(pod, "stage"),
+		"version":         getLabel(pod, "version"),
+	}
+
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		if containerStatus.State.Terminated != nil &&
 			utils.StringContains(containerTerminatedReasons, containerStatus.State.Terminated.Reason) &&
@@ -123,8 +133,7 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			summary := fmt.Sprintf("Pod %s/%s terminated - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Terminated.Reason)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
-			incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Terminate.Priority)
-			incident.CreateIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "terminate")
+			incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Terminate.Priority, labels)
 			break
 		}
 
@@ -134,8 +143,7 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			summary := fmt.Sprintf("Pod %s/%s waiting - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Waiting.Reason)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
-			incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Waiting.Priority)
-			incident.CreateIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "waiting")
+			incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Waiting.Priority, labels)
 			break
 		}
 
@@ -143,8 +151,7 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			summary := fmt.Sprintf("Pod %s/%s restarts threshold reached: %d", pod.GetNamespace(), pod.GetName(), containerStatus.RestartCount)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
-			incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Restarts.Priority)
-			incident.CreateIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "restarts")
+			incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Restarts.Priority, labels)
 			break
 		}
 	}
@@ -162,6 +169,16 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 	if err != nil {
 		log.Debug().Err(err).Msg("Failed to get pod metrics")
 		return err
+	}
+
+	labels := map[string]string{
+		"namespace":       pod.GetNamespace(),
+		"name":            pod.GetName(),
+		"resourceVersion": pod.GetResourceVersion(),
+		"clusterName":     pod.GetClusterName(),
+		"app":             getLabel(pod, "app"),
+		"stage":           getLabel(pod, "stage"),
+		"version":         getLabel(pod, "version"),
 	}
 
 	healthy := true
@@ -208,8 +225,7 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 						summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.CPU.Threshold)
 						details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 						links := getPodLinks(cfg, pod)
-						incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority)
-						incident.CreateIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "resources")
+						incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority, labels)
 					}
 				}
 			}
@@ -231,16 +247,14 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 						summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Memory.Threshold)
 						details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 						links := getPodLinks(cfg, pod)
-						incidentID := incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority)
-						incident.CreateIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace(), incidentID, summary, details, "resources")
+						incident.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority, labels)
 					}
 				}
 			}
 		}
 	}
 	if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 && incidentRef.Spec.Type == "resources" {
-		incident.CreateEvent(cfg, nil, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "")
-		incident.DeleteIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace())
+		incident.CreateEvent(cfg, nil, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "", labels)
 	}
 
 	return nil
