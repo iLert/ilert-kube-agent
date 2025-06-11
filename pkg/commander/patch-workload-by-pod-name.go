@@ -97,6 +97,10 @@ func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName s
 		case "ReplicaSet":
 			rs, err := clientset.AppsV1().ReplicaSets(namespace).Get(owner.Name, metav1.GetOptions{})
 			if err != nil {
+				log.Error().Err(err).
+					Str("pod_name", podName).
+					Str("namespace", namespace).
+					Msg("failed to get replica set")
 				continue
 			}
 			for _, rsOwner := range rs.OwnerReferences {
