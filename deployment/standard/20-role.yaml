@@ -30,8 +30,10 @@ rules:
       - "apps"
     resources:
       - deployments
+      - statefulset
     verbs:
       - list
+      - get
       - patch
   - apiGroups:
       - "coordination.k8s.io"

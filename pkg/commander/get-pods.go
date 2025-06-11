@@ -9,11 +9,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func PodStatusesHandler(ctx *gin.Context, cfg *config.Config) {
-	pods, err := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
+func GetPodsHandler(ctx *gin.Context, cfg *config.Config) {
+	namespace := ctx.Query("namespace")
+	if namespace == "" {
+		namespace = metav1.NamespaceAll
+	}
+	pods, err := cfg.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to get pods from apiserver")
-		ctx.String(http.StatusInternalServerError, "Internal server error")
+		log.Error().Err(err).Str("namespace", namespace).Msg("Failed to list pods")
+		ctx.PureJSON(http.StatusInternalServerError, gin.H{"message": "Failed to list pods"})
 		return
 	}
 

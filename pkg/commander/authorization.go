@@ -11,10 +11,12 @@ import (
 func CheckAuthorization(ctx *gin.Context, cfg *config.Config) error {
 	authorizationHeader := ctx.Request.Header.Get("Authorization")
 	if authorizationHeader == "" {
-		ctx.String(http.StatusUnauthorized, "Unauthorized")
+		ctx.PureJSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
 		return errors.New("unauthorized")
-	} else if authorizationHeader != "Bearer "+cfg.Settings.HttpAuthorizationKey {
-		ctx.String(http.StatusForbidden, "Forbidden")
+	}
+
+	if authorizationHeader != "Bearer "+cfg.Settings.HttpAuthorizationKey {
+		ctx.PureJSON(http.StatusForbidden, gin.H{"message": "Forbidden"})
 		return errors.New("incorrect authorization")
 	}
 

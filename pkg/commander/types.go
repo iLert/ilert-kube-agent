@@ -19,3 +19,15 @@ type ContainerResourceRequirements struct {
 	Name      string                  `json:"name"`
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 }
+
+type WorkloadInfo struct {
+	Type string // "deployment" or "statefulset"
+	Name string
+}
+
+type ResourceLimits struct {
+	CPULimit      *string `json:"cpuLimit,omitempty"`
+	MemoryLimit   *string `json:"memoryLimit,omitempty"`
+	CPURequest    *string `json:"cpuRequest,omitempty"`
+	MemoryRequest *string `json:"memoryRequest,omitempty"`
+}

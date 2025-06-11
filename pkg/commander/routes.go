@@ -8,10 +8,10 @@ import (
 
 func SetUpMcpRoutes(router *gin.Engine, cfg *config.Config) {
 
-	router.GET("/api/pod-statuses", AuthorizedHandler(cfg, PodStatusesHandler))
-	router.GET("/api/pod-logs", AuthorizedHandler(cfg, PodLogsHandler))
-	router.GET("/api/deployment-update-cpu-limit", AuthorizedHandler(cfg, DeploymentPatchCpuLimitHandler))
-	router.GET("/api/deployment-update-memory-limit", AuthorizedHandler(cfg, DeploymentPatchMemoryLimitHandler))
+	router.GET("/api/pods", AuthorizedHandler(cfg, GetPodsHandler))
+	router.GET("/api/pods/:podName", AuthorizedHandler(cfg, GetPodHandler))
+	router.GET("/api/pods/:podName/logs", AuthorizedHandler(cfg, GetPodLogsHandler))
+	router.PATCH("/api/workloads/:podName", AuthorizedHandler(cfg, PatchResourcesByPodNameHandler))
 }
 
 func AuthorizedHandler(cfg *config.Config, handler func(*gin.Context, *config.Config)) func(*gin.Context) {
