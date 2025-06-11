@@ -22,16 +22,16 @@ type Config struct {
 
 // ConfigSettings definition
 type ConfigSettings struct {
-	APIKey           string            `yaml:"apiKey"`
-	AuthorizationKey string            `yaml:"authorizationKey"`
-	KubeConfig       string            `yaml:"kubeconfig"`
-	Master           string            `yaml:"master"`
-	Insecure         bool              `yaml:"insecure"`
-	Namespace        string            `yaml:"namespace"`
-	Port             int               `yaml:"port"`
-	Log              ConfigSettingsLog `yaml:"log"`
-	ElectionID       string            `yaml:"electionID"`
-	CheckInterval    string            `yaml:"checkInterval"`
+	APIKey               string            `yaml:"apiKey"`
+	HttpAuthorizationKey string            `yaml:"httpAuthorizationKey"`
+	KubeConfig           string            `yaml:"kubeconfig"`
+	Master               string            `yaml:"master"`
+	Insecure             bool              `yaml:"insecure"`
+	Namespace            string            `yaml:"namespace"`
+	Port                 int               `yaml:"port"`
+	Log                  ConfigSettingsLog `yaml:"log"`
+	ElectionID           string            `yaml:"electionID"`
+	CheckInterval        string            `yaml:"checkInterval"`
 }
 
 // ConfigSettingsLog definition
