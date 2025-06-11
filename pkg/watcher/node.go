@@ -73,7 +73,7 @@ func analyzeNodeStatus(node *api.Node, cfg *config.Config) {
 
 	labels := map[string]string{
 		"namespace":       node.GetNamespace(),
-		"name":            node.GetName(),
+		"nodeName":        node.GetName(),
 		"resourceVersion": node.GetResourceVersion(),
 		"clusterName":     node.GetClusterName(),
 	}
@@ -93,7 +93,7 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 
 	labels := map[string]string{
 		"namespace":       node.GetNamespace(),
-		"name":            node.GetName(),
+		"nodeName":        node.GetName(),
 		"resourceVersion": node.GetResourceVersion(),
 		"clusterName":     node.GetClusterName(),
 	}

@@ -118,7 +118,7 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 
 	labels := map[string]string{
 		"namespace":       pod.GetNamespace(),
-		"name":            pod.GetName(),
+		"podName":         pod.GetName(),
 		"resourceVersion": pod.GetResourceVersion(),
 		"clusterName":     pod.GetClusterName(),
 		"app":             getLabel(pod, "app"),
@@ -173,7 +173,7 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 
 	labels := map[string]string{
 		"namespace":       pod.GetNamespace(),
-		"name":            pod.GetName(),
+		"podName":         pod.GetName(),
 		"resourceVersion": pod.GetResourceVersion(),
 		"clusterName":     pod.GetClusterName(),
 		"app":             getLabel(pod, "app"),
