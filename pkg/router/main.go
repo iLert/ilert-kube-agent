@@ -42,7 +42,9 @@ func Setup(srg *storage.Storage, cfg *config.Config) *gin.Engine {
 	})
 	router.GET("/api/health", healthHandler)
 
-	commander.SetUpMcpRoutes(router, cfg)
+	if cfg.Settings.HttpAuthorizationKey != "" {
+		commander.SetUpMcpRoutes(router, cfg)
+	}
 
 	return router
 }
