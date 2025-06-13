@@ -31,3 +31,7 @@ type ResourceLimits struct {
 	CPURequest    *string `json:"cpuRequest,omitempty"`
 	MemoryRequest *string `json:"memoryRequest,omitempty"`
 }
+
+type Scale struct {
+	Replicas int64 `json:"replicas"`
+}

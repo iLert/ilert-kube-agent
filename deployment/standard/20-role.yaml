@@ -36,6 +36,13 @@ rules:
       - get
       - patch
   - apiGroups:
+      - "apps"
+    resources:
+      - deployments/scale
+    verbs:
+      - get
+      - update
+  - apiGroups:
       - "coordination.k8s.io"
     resources:
       - leases

@@ -12,6 +12,7 @@ func SetUpMcpRoutes(router *gin.Engine, cfg *config.Config) {
 	router.GET("/api/pods/:podName", AuthorizedHandler(cfg, GetPodHandler))
 	router.GET("/api/pods/:podName/logs", AuthorizedHandler(cfg, GetPodLogsHandler))
 	router.PATCH("/api/workloads/:podName", AuthorizedHandler(cfg, PatchResourcesByPodNameHandler))
+	router.PATCH("/api/scale/:deploymentName", AuthorizedHandler(cfg, ScaleDeploymentHandler))
 }
 
 func AuthorizedHandler(cfg *config.Config, handler func(*gin.Context, *config.Config)) func(*gin.Context) {
