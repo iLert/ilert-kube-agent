@@ -2,6 +2,7 @@ package commander
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
@@ -21,19 +22,32 @@ func DeletePodHandler(ctx *gin.Context, cfg *config.Config) {
 		namespace = metav1.NamespaceAll
 	}
 
-	deleteOptions := &metav1.DeleteOptions{}
-	if err := ctx.ShouldBindJSON(deleteOptions); err != nil {
-		log.Error().Err(err).
-			Str("pod_name", podName).
-			Str("namespace", namespace).
-			Msg("Failed to bind JSON")
-		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Failed to parse request body", "error": err.Error()})
+	var gracePeriodSeconds *int64
+	gracePeriodSecondsQuery := ctx.Query("gracePeriodSeconds")
+	gracePeriodSecondsValue, err := strconv.ParseInt(gracePeriodSecondsQuery, 10, 32)
+	if gracePeriodSecondsQuery != "" && (err != nil || gracePeriodSecondsValue < 0) {
+		log.Warn().Msg("Invalid gracePeriodSeconds")
+		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Invalid gracePeriodSeconds"})
 		return
 	}
+	if gracePeriodSecondsQuery != "" {
+		gracePeriodSeconds = &gracePeriodSecondsValue
+	}
 
-	err := cfg.KubeClient.CoreV1().Pods(namespace).Delete(podName, &metav1.DeleteOptions{
-		GracePeriodSeconds: deleteOptions.GracePeriodSeconds,
-		PropagationPolicy:  deleteOptions.PropagationPolicy,
+	var propagationPolicy *metav1.DeletionPropagation
+	propagationPolicyQuery := ctx.Query("propagationPolicy")
+	if propagationPolicyQuery != "" && propagationPolicyQuery != string(metav1.DeletePropagationOrphan) && propagationPolicyQuery != string(metav1.DeletePropagationBackground) && propagationPolicyQuery != string(metav1.DeletePropagationForeground) {
+		log.Warn().Msg("Invalid propagationPolicy")
+		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Invalid propagationPolicy"})
+		return
+	}
+	if propagationPolicyQuery != "" {
+		propagationPolicy = (*metav1.DeletionPropagation)(&propagationPolicyQuery)
+	}
+
+	err = cfg.KubeClient.CoreV1().Pods(namespace).Delete(podName, &metav1.DeleteOptions{
+		GracePeriodSeconds: gracePeriodSeconds,
+		PropagationPolicy:  propagationPolicy,
 	})
 	if err != nil {
 		log.Error().Err(err).
