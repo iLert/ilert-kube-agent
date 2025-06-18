@@ -1,6 +1,9 @@
 package commander
 
-import v1 "k8s.io/api/core/v1"
+import (
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 type PodStatus struct {
 	Name       string            `json:"name,omitempty"`
@@ -34,4 +37,9 @@ type ResourceLimits struct {
 
 type Scale struct {
 	Replicas int64 `json:"replicas"`
+}
+
+type DeleteOptions struct {
+	GracePeriodSeconds *int64                      `json:"gracePeriodSeconds,omitempty"`
+	PropagationPolicy  *metav1.DeletionPropagation `json:"propagationPolicy,omitempty"`
 }

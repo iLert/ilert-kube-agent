@@ -27,6 +27,12 @@ rules:
     verbs:
       - get
   - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - delete
+  - apiGroups:
       - "apps"
     resources:
       - deployments
