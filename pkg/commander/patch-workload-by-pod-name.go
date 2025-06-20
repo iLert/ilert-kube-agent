@@ -51,7 +51,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("Failed to set workload resources by pod name")
-		ctx.PureJSON(http.StatusInternalServerError, gin.H{"message": "Failed to list pods", "error": err.Error()})
+		ctx.PureJSON(http.StatusInternalServerError, gin.H{"message": "Failed to set workload resources by pod name", "error": err.Error()})
 		return
 	}
 

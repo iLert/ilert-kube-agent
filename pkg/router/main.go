@@ -38,13 +38,10 @@ func Setup(srg *storage.Storage, cfg *config.Config) *gin.Engine {
 	)
 	router.GET("/metrics", func(c *gin.Context) {
 		prom.ServeHTTP(c.Writer, c.Request)
-		return
 	})
 	router.GET("/api/health", healthHandler)
 
-	if cfg.Settings.HttpAuthorizationKey != "" {
-		commander.SetUpMcpRoutes(router, cfg)
-	}
+	commander.SetUpMcpRoutes(router, cfg)
 
 	return router
 }
