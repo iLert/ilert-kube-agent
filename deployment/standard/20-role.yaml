@@ -60,17 +60,6 @@ rules:
       - update
     resourceNames:
       - "ilert-kube-agent"
-  - apiGroups:
-      - "ilert.com"
-    resources:
-      - incidents
-    verbs:
-      - create
-      - update
-      - get
-      - delete
-      - list
-      - watch
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
