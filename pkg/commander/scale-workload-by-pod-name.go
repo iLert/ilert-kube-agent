@@ -3,7 +3,6 @@ package commander
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
@@ -23,13 +22,6 @@ func ScaleWorkloadByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
 	}
-	currentReplicasQuery := ctx.Query("currentReplicas")
-	currentReplicas, err := strconv.ParseInt(currentReplicasQuery, 10, 32)
-	if currentReplicasQuery != "" && (err != nil || currentReplicas < 0) {
-		log.Warn().Msg("Invalid currentReplicas")
-		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Invalid currentReplicas"})
-		return
-	}
 
 	scale := &Scale{}
 	if err := ctx.ShouldBindJSON(scale); err != nil {
@@ -41,11 +33,7 @@ func ScaleWorkloadByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	if currentReplicasQuery == "" {
-		currentReplicas = -1
-	}
-
-	err = scaleWorkloadByPodName(cfg.KubeClient, namespace, podName, currentReplicas, scale.Replicas)
+	err := scaleWorkloadByPodName(cfg.KubeClient, namespace, podName, scale.Replicas)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
@@ -58,7 +46,7 @@ func ScaleWorkloadByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 	ctx.PureJSON(http.StatusOK, gin.H{})
 }
 
-func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string, currentReplicas int64, replicas int64) error {
+func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string, replicas int64) error {
 	workload, err := findWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
 		log.Error().Err(err).
@@ -70,9 +58,9 @@ func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName 
 
 	switch workload.Type {
 	case "deployment":
-		return scaleDeployment(clientset, namespace, workload.Name, currentReplicas, replicas)
+		return scaleDeployment(clientset, namespace, workload.Name, replicas)
 	case "statefulset":
-		return scaleStatefulSet(clientset, namespace, workload.Name, currentReplicas, replicas)
+		return scaleStatefulSet(clientset, namespace, workload.Name, replicas)
 	default:
 		log.Error().
 			Str("pod_name", podName).
@@ -82,7 +70,7 @@ func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName 
 	}
 }
 
-func scaleDeployment(clientset *kubernetes.Clientset, namespace, deploymentName string, currentReplicas int64, replicas int64) error {
+func scaleDeployment(clientset *kubernetes.Clientset, namespace, deploymentName string, replicas int64) error {
 	currentScale, err := clientset.AppsV1().Deployments(namespace).GetScale(deploymentName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
@@ -92,17 +80,13 @@ func scaleDeployment(clientset *kubernetes.Clientset, namespace, deploymentName 
 		return fmt.Errorf("failed to get deployment scale: %v", err)
 	}
 
-	if currentReplicas >= 0 && currentReplicas != int64(currentScale.Status.Replicas) {
-		return fmt.Errorf("precondition failed")
-	}
-
 	currentScale.Spec.Replicas = int32(replicas)
 
 	_, err = clientset.AppsV1().Deployments(namespace).UpdateScale(deploymentName, currentScale)
 	return err
 }
 
-func scaleStatefulSet(clientset *kubernetes.Clientset, namespace, statefulSetName string, currentReplicas int64, replicas int64) error {
+func scaleStatefulSet(clientset *kubernetes.Clientset, namespace, statefulSetName string, replicas int64) error {
 	currentScale, err := clientset.AppsV1().StatefulSets(namespace).GetScale(statefulSetName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
@@ -110,10 +94,6 @@ func scaleStatefulSet(clientset *kubernetes.Clientset, namespace, statefulSetNam
 			Str("namespace", namespace).
 			Msg("failed to get statefulset scale")
 		return fmt.Errorf("failed to get statefulset scale: %v", err)
-	}
-
-	if currentReplicas >= 0 && currentReplicas != int64(currentScale.Status.Replicas) {
-		return fmt.Errorf("precondition failed")
 	}
 
 	currentScale.Spec.Replicas = int32(replicas)

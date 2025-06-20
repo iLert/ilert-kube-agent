@@ -2,7 +2,6 @@ package commander
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
@@ -20,13 +19,6 @@ func ScaleStatefulSetHandler(ctx *gin.Context, cfg *config.Config) {
 	namespace := ctx.Query("namespace")
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
-	}
-	currentReplicasQuery := ctx.Query("currentReplicas")
-	currentReplicas, err := strconv.ParseInt(currentReplicasQuery, 10, 32)
-	if currentReplicasQuery != "" && (err != nil || currentReplicas < 0) {
-		log.Warn().Msg("Invalid currentReplicas")
-		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Invalid currentReplicas"})
-		return
 	}
 
 	scale := &Scale{}
@@ -46,11 +38,6 @@ func ScaleStatefulSetHandler(ctx *gin.Context, cfg *config.Config) {
 			Str("namespace", namespace).
 			Msg("failed to get statefulSet scale")
 		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Failed to get statefulSet scale", "error": err.Error()})
-		return
-	}
-
-	if currentReplicasQuery != "" && currentReplicas != int64(currentScale.Status.Replicas) {
-		ctx.PureJSON(http.StatusAccepted, gin.H{"message": "Precondition failed."})
 		return
 	}
 
