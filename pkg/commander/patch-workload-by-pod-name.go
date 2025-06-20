@@ -45,12 +45,16 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	err := setResourcesByPodName(cfg.KubeClient, namespace, podName, resources)
+	err, isPodNotFound := setResourcesByPodName(cfg.KubeClient, namespace, podName, resources)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("Failed to set workload resources by pod name")
+		if isPodNotFound {
+			ctx.PureJSON(http.StatusNotFound, gin.H{"message": ErrorPodNotFound})
+			return
+		}
 		ctx.PureJSON(http.StatusInternalServerError, gin.H{"message": "Failed to set workload resources by pod name", "error": err.Error()})
 		return
 	}
@@ -58,38 +62,43 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 	ctx.PureJSON(http.StatusOK, gin.H{})
 }
 
-func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits) error {
-	workload, err := findWorkloadByPodName(clientset, namespace, podName)
+func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits) (error, bool) {
+	workload, err, isPodNotFound := findWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("failed to find workload for pod")
-		return fmt.Errorf("failed to find workload for pod %s: %v", podName, err)
+		return fmt.Errorf("failed to find workload for pod %s: %v", podName, err), isPodNotFound
 	}
 
 	switch workload.Type {
 	case "deployment":
-		return setDeploymentResources(clientset, namespace, workload.Name, resources)
+		return setDeploymentResources(clientset, namespace, workload.Name, resources), false
 	case "statefulset":
-		return setStatefulSetResources(clientset, namespace, workload.Name, resources)
+		return setStatefulSetResources(clientset, namespace, workload.Name, resources), false
 	default:
 		log.Error().
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("unsupported workload type")
-		return fmt.Errorf("unsupported workload type: %s", workload.Type)
+		return fmt.Errorf("unsupported workload type: %s", workload.Type), false
 	}
 }
 
-func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string) (*WorkloadInfo, error) {
+func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string) (*WorkloadInfo, error, bool) {
 	pod, err := clientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("failed to get pod")
-		return nil, fmt.Errorf("failed to get pod: %v", err)
+
+		if ErrorMatchers.PodNotFound.Match([]byte(err.Error())) {
+			return nil, fmt.Errorf("pod not found: %v", err), true
+		}
+
+		return nil, fmt.Errorf("failed to get pod: %v", err), false
 	}
 
 	for _, owner := range pod.OwnerReferences {
@@ -105,17 +114,17 @@ func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName s
 			}
 			for _, rsOwner := range rs.OwnerReferences {
 				if rsOwner.Kind == "Deployment" {
-					return &WorkloadInfo{Type: "deployment", Name: rsOwner.Name}, nil
+					return &WorkloadInfo{Type: "deployment", Name: rsOwner.Name}, nil, false
 				}
 			}
 		case "StatefulSet":
-			return &WorkloadInfo{Type: "statefulset", Name: owner.Name}, nil
+			return &WorkloadInfo{Type: "statefulset", Name: owner.Name}, nil, false
 		case "Deployment":
-			return &WorkloadInfo{Type: "deployment", Name: owner.Name}, nil
+			return &WorkloadInfo{Type: "deployment", Name: owner.Name}, nil, false
 		}
 	}
 
-	return nil, fmt.Errorf("could not determine workload type for pod %s", podName)
+	return nil, fmt.Errorf("could not determine workload type for pod %s", podName), false
 }
 
 func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *ResourceLimits) error {

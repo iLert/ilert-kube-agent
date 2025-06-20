@@ -45,6 +45,10 @@ func GetPodLogsHandler(ctx *gin.Context, cfg *config.Config) {
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("Failed to stream logs")
+		if ErrorMatchers.PodNotFound.Match([]byte(err.Error())) {
+			ctx.PureJSON(http.StatusNotFound, gin.H{"message": ErrorPodNotFound})
+			return
+		}
 		ctx.String(http.StatusInternalServerError, "Failed to stream logs")
 		return
 	}

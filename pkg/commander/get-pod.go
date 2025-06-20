@@ -26,6 +26,12 @@ func GetPodHandler(ctx *gin.Context, cfg *config.Config) {
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("Failed to get pod")
+
+		if ErrorMatchers.PodNotFound.Match([]byte(err.Error())) {
+			ctx.PureJSON(http.StatusNotFound, gin.H{"message": ErrorPodNotFound})
+			return
+		}
+
 		ctx.PureJSON(http.StatusInternalServerError, gin.H{"message": "Failed to get pod"})
 		return
 	}

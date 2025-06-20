@@ -54,6 +54,10 @@ func DeletePodHandler(ctx *gin.Context, cfg *config.Config) {
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("Failed to delete pod")
+		if ErrorMatchers.PodNotFound.Match([]byte(err.Error())) {
+			ctx.PureJSON(http.StatusNotFound, gin.H{"message": ErrorPodNotFound})
+			return
+		}
 		ctx.PureJSON(http.StatusInternalServerError, gin.H{"message": "Failed to delete pod", "error": err.Error()})
 		return
 	}

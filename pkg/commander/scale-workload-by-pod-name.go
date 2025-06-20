@@ -33,12 +33,16 @@ func ScaleWorkloadByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	err := scaleWorkloadByPodName(cfg.KubeClient, namespace, podName, scale.Replicas)
+	err, isPodNotFound := scaleWorkloadByPodName(cfg.KubeClient, namespace, podName, scale.Replicas)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("Failed to scale resource by pod name")
+		if isPodNotFound {
+			ctx.PureJSON(http.StatusNotFound, gin.H{"message": ErrorPodNotFound})
+			return
+		}
 		ctx.PureJSON(http.StatusInternalServerError, gin.H{"message": "Failed to scale resource", "error": err.Error()})
 		return
 	}
@@ -46,27 +50,27 @@ func ScaleWorkloadByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 	ctx.PureJSON(http.StatusOK, gin.H{})
 }
 
-func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string, replicas int64) error {
-	workload, err := findWorkloadByPodName(clientset, namespace, podName)
+func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string, replicas int64) (error, bool) {
+	workload, err, isPodNotFound := findWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("failed to find workload for pod")
-		return fmt.Errorf("failed to find workload for pod %s: %v", podName, err)
+		return fmt.Errorf("failed to find workload for pod %s: %v", podName, err), isPodNotFound
 	}
 
 	switch workload.Type {
 	case "deployment":
-		return scaleDeployment(clientset, namespace, workload.Name, replicas)
+		return scaleDeployment(clientset, namespace, workload.Name, replicas), false
 	case "statefulset":
-		return scaleStatefulSet(clientset, namespace, workload.Name, replicas)
+		return scaleStatefulSet(clientset, namespace, workload.Name, replicas), false
 	default:
 		log.Error().
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("unsupported workload type")
-		return fmt.Errorf("unsupported workload type: %s", workload.Type)
+		return fmt.Errorf("unsupported workload type: %s", workload.Type), false
 	}
 }
 

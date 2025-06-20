@@ -9,6 +9,10 @@ import (
 )
 
 func SetUpMcpRoutes(router *gin.Engine, cfg *config.Config) {
+	err := ErrorMatchers.Init()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to init regexp error matchers.")
+	}
 
 	router.GET("/api/pods", AuthorizedHandler(cfg, GetPodsHandler))
 	router.GET("/api/pods/:podName", AuthorizedHandler(cfg, GetPodHandler))
