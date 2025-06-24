@@ -1,6 +1,8 @@
 package watcher
 
 import (
+	"context"
+
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -70,7 +72,7 @@ func RunOnce(cfg *config.Config) {
 	}
 
 	if cfg.Alarms.Pods.Enabled {
-		pods, err := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
+		pods, err := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
 		}
@@ -81,7 +83,7 @@ func RunOnce(cfg *config.Config) {
 		}
 	}
 	if cfg.Alarms.Nodes.Enabled {
-		nodes, err := cfg.KubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
+		nodes, err := cfg.KubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
 		}

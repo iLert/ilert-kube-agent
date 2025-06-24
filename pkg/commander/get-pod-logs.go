@@ -2,6 +2,7 @@ package commander
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"strconv"
@@ -39,7 +40,7 @@ func GetPodLogsHandler(ctx *gin.Context, cfg *config.Config) {
 		Previous:  previous,
 		TailLines: Int64(limit),
 	})
-	podLogs, err := req.Stream()
+	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).

@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/robfig/cron/v3"
@@ -30,7 +31,7 @@ func stopNodeMetricsChecker() {
 }
 
 func checkNodes(cfg *config.Config) {
-	nodes, err := cfg.KubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
+	nodes, err := cfg.KubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
 	}

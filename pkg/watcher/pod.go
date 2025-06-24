@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -72,7 +73,7 @@ func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string
 	}
 
 	req := kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
-	podLogs, err := req.Stream()
+	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
 		return ""
 	}
@@ -92,7 +93,6 @@ func getPodMustacheValues(pod *api.Pod) map[string]string {
 	return map[string]string{
 		"pod_name":      pod.GetName(),
 		"pod_namespace": pod.GetNamespace(),
-		"cluster_name":  pod.GetClusterName(),
 	}
 }
 
@@ -120,7 +120,6 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 		"namespace":       pod.GetNamespace(),
 		"podName":         pod.GetName(),
 		"resourceVersion": pod.GetResourceVersion(),
-		"clusterName":     pod.GetClusterName(),
 		"app":             getLabel(pod, "app"),
 		"stage":           getLabel(pod, "stage"),
 		"version":         getLabel(pod, "version"),
@@ -165,7 +164,7 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 	podKey := getPodKey(pod)
 	incidentRef := incident.GetIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace())
 
-	podMetrics, err := cfg.MetricsClient.MetricsV1beta1().PodMetricses(pod.GetNamespace()).Get(pod.GetName(), metav1.GetOptions{})
+	podMetrics, err := cfg.MetricsClient.MetricsV1beta1().PodMetricses(pod.GetNamespace()).Get(context.TODO(), pod.GetName(), metav1.GetOptions{})
 	if err != nil {
 		log.Debug().Err(err).Msg("Failed to get pod metrics")
 		return err
@@ -175,7 +174,6 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 		"namespace":       pod.GetNamespace(),
 		"podName":         pod.GetName(),
 		"resourceVersion": pod.GetResourceVersion(),
-		"clusterName":     pod.GetClusterName(),
 		"app":             getLabel(pod, "app"),
 		"stage":           getLabel(pod, "stage"),
 		"version":         getLabel(pod, "version"),

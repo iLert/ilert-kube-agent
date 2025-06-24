@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
@@ -70,7 +71,7 @@ func (c *incidents) Get(name string, options metav1.GetOptions) (result *v1.Inci
 		Resource("incidents").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
@@ -87,7 +88,7 @@ func (c *incidents) List(opts metav1.ListOptions) (result *v1.IncidentList, err 
 		Resource("incidents").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
@@ -104,7 +105,7 @@ func (c *incidents) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		Resource("incidents").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(context.TODO())
 }
 
 // Create takes the representation of a incident and creates it.  Returns the server's representation of the incident, and an error, if there is any.
@@ -114,7 +115,7 @@ func (c *incidents) Create(incident *v1.Incident) (result *v1.Incident, err erro
 		Namespace(c.ns).
 		Resource("incidents").
 		Body(incident).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
@@ -127,7 +128,7 @@ func (c *incidents) Update(incident *v1.Incident) (result *v1.Incident, err erro
 		Resource("incidents").
 		Name(incident.Name).
 		Body(incident).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }
@@ -139,7 +140,7 @@ func (c *incidents) Delete(name string, options *metav1.DeleteOptions) error {
 		Resource("incidents").
 		Name(name).
 		Body(options).
-		Do().
+		Do(context.TODO()).
 		Error()
 }
 
@@ -155,7 +156,7 @@ func (c *incidents) DeleteCollection(options *metav1.DeleteOptions, listOptions 
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
-		Do().
+		Do(context.TODO()).
 		Error()
 }
 
@@ -168,7 +169,7 @@ func (c *incidents) Patch(name string, pt types.PatchType, data []byte, subresou
 		SubResource(subresources...).
 		Name(name).
 		Body(data).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return
 }

@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -75,7 +76,7 @@ func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName 
 }
 
 func scaleDeployment(clientset *kubernetes.Clientset, namespace, deploymentName string, replicas int64) error {
-	currentScale, err := clientset.AppsV1().Deployments(namespace).GetScale(deploymentName, metav1.GetOptions{})
+	currentScale, err := clientset.AppsV1().Deployments(namespace).GetScale(context.TODO(), deploymentName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("deployment_name", deploymentName).
@@ -86,12 +87,12 @@ func scaleDeployment(clientset *kubernetes.Clientset, namespace, deploymentName 
 
 	currentScale.Spec.Replicas = int32(replicas)
 
-	_, err = clientset.AppsV1().Deployments(namespace).UpdateScale(deploymentName, currentScale)
+	_, err = clientset.AppsV1().Deployments(namespace).UpdateScale(context.TODO(), deploymentName, currentScale, metav1.UpdateOptions{})
 	return err
 }
 
 func scaleStatefulSet(clientset *kubernetes.Clientset, namespace, statefulSetName string, replicas int64) error {
-	currentScale, err := clientset.AppsV1().StatefulSets(namespace).GetScale(statefulSetName, metav1.GetOptions{})
+	currentScale, err := clientset.AppsV1().StatefulSets(namespace).GetScale(context.TODO(), statefulSetName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("statefulset_name", statefulSetName).
@@ -102,6 +103,6 @@ func scaleStatefulSet(clientset *kubernetes.Clientset, namespace, statefulSetNam
 
 	currentScale.Spec.Replicas = int32(replicas)
 
-	_, err = clientset.AppsV1().StatefulSets(namespace).UpdateScale(statefulSetName, currentScale)
+	_, err = clientset.AppsV1().StatefulSets(namespace).UpdateScale(context.TODO(), statefulSetName, currentScale, metav1.UpdateOptions{})
 	return err
 }

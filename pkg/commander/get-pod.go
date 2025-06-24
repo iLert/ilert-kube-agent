@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,7 @@ func GetPodHandler(ctx *gin.Context, cfg *config.Config) {
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
 	}
-	pod, err := cfg.KubeClient.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+	pod, err := cfg.KubeClient.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).

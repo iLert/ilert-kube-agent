@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,7 @@ func ScaleDeploymentHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	currentScale, err := cfg.KubeClient.AppsV1().Deployments(namespace).GetScale(deploymentName, metav1.GetOptions{})
+	currentScale, err := cfg.KubeClient.AppsV1().Deployments(namespace).GetScale(context.TODO(), deploymentName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("deployment_name", deploymentName).
@@ -43,7 +44,7 @@ func ScaleDeploymentHandler(ctx *gin.Context, cfg *config.Config) {
 
 	currentScale.Spec.Replicas = int32(scale.Replicas)
 
-	_, err = cfg.KubeClient.AppsV1().Deployments(namespace).UpdateScale(deploymentName, currentScale)
+	_, err = cfg.KubeClient.AppsV1().Deployments(namespace).UpdateScale(context.TODO(), deploymentName, currentScale, metav1.UpdateOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("deployment_name", deploymentName).

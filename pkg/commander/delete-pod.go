@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -45,7 +46,7 @@ func DeletePodHandler(ctx *gin.Context, cfg *config.Config) {
 		propagationPolicy = (*metav1.DeletionPropagation)(&propagationPolicyQuery)
 	}
 
-	err = cfg.KubeClient.CoreV1().Pods(namespace).Delete(podName, &metav1.DeleteOptions{
+	err = cfg.KubeClient.CoreV1().Pods(namespace).Delete(context.TODO(), podName, metav1.DeleteOptions{
 		GracePeriodSeconds: gracePeriodSeconds,
 		PropagationPolicy:  propagationPolicy,
 	})

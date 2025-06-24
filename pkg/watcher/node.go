@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -46,8 +47,7 @@ func getNodeDetailsWithUsageLimit(kubeClient *kubernetes.Clientset, node *api.No
 
 func getNodeMustacheValues(node *api.Node) map[string]string {
 	return map[string]string{
-		"node_name":    node.GetName(),
-		"cluster_name": node.GetClusterName(),
+		"node_name": node.GetName(),
 	}
 }
 
@@ -75,7 +75,6 @@ func analyzeNodeStatus(node *api.Node, cfg *config.Config) {
 		"namespace":       node.GetNamespace(),
 		"nodeName":        node.GetName(),
 		"resourceVersion": node.GetResourceVersion(),
-		"clusterName":     node.GetClusterName(),
 	}
 
 	if node.Status.Phase == api.NodeTerminated && cfg.Alarms.Nodes.Terminate.Enabled && incidentRef == nil {
@@ -95,12 +94,11 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 		"namespace":       node.GetNamespace(),
 		"nodeName":        node.GetName(),
 		"resourceVersion": node.GetResourceVersion(),
-		"clusterName":     node.GetClusterName(),
 	}
 	nodeKey := getNodeKey(node)
 	incidentRef := incident.GetIncidentRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace)
 
-	nodeMetrics, err := cfg.MetricsClient.MetricsV1beta1().NodeMetricses().Get(node.GetName(), metav1.GetOptions{})
+	nodeMetrics, err := cfg.MetricsClient.MetricsV1beta1().NodeMetricses().Get(context.TODO(), node.GetName(), metav1.GetOptions{})
 	if err != nil {
 		log.Debug().Err(err).Msg("Failed to get node metrics")
 		return err

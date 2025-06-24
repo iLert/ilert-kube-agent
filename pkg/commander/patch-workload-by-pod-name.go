@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -87,7 +88,7 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 }
 
 func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string) (*WorkloadInfo, error, bool) {
-	pod, err := clientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+	pod, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
@@ -104,7 +105,7 @@ func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName s
 	for _, owner := range pod.OwnerReferences {
 		switch owner.Kind {
 		case "ReplicaSet":
-			rs, err := clientset.AppsV1().ReplicaSets(namespace).Get(owner.Name, metav1.GetOptions{})
+			rs, err := clientset.AppsV1().ReplicaSets(namespace).Get(context.TODO(), owner.Name, metav1.GetOptions{})
 			if err != nil {
 				log.Error().Err(err).
 					Str("pod_name", podName).
@@ -128,7 +129,7 @@ func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName s
 }
 
 func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *ResourceLimits) error {
-	deployment, err := clientset.AppsV1().Deployments(namespace).Get(deploymentName, metav1.GetOptions{})
+	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("deployment_name", deploymentName).
@@ -156,12 +157,12 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 		return fmt.Errorf("failed to marshal patches: %v", err)
 	}
 
-	_, err = clientset.AppsV1().Deployments(namespace).Patch(deploymentName, types.JSONPatchType, patchBytes)
+	_, err = clientset.AppsV1().Deployments(namespace).Patch(context.TODO(), deploymentName, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
 	return err
 }
 
 func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefulSetName string, resources *ResourceLimits) error {
-	statefulSet, err := clientset.AppsV1().StatefulSets(namespace).Get(statefulSetName, metav1.GetOptions{})
+	statefulSet, err := clientset.AppsV1().StatefulSets(namespace).Get(context.TODO(), statefulSetName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("statefulset_name", statefulSetName).
@@ -189,7 +190,7 @@ func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefu
 		return fmt.Errorf("failed to marshal patches: %v", err)
 	}
 
-	_, err = clientset.AppsV1().StatefulSets(namespace).Patch(statefulSetName, types.JSONPatchType, patchBytes)
+	_, err = clientset.AppsV1().StatefulSets(namespace).Patch(context.TODO(), statefulSetName, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
 	return err
 }
 

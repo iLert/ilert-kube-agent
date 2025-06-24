@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,7 @@ func ScaleStatefulSetHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	currentScale, err := cfg.KubeClient.AppsV1().StatefulSets(namespace).GetScale(statefulSetName, metav1.GetOptions{})
+	currentScale, err := cfg.KubeClient.AppsV1().StatefulSets(namespace).GetScale(context.TODO(), statefulSetName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("statefulset_name", statefulSetName).
@@ -43,7 +44,7 @@ func ScaleStatefulSetHandler(ctx *gin.Context, cfg *config.Config) {
 
 	currentScale.Spec.Replicas = int32(scale.Replicas)
 
-	_, err = cfg.KubeClient.AppsV1().StatefulSets(namespace).UpdateScale(statefulSetName, currentScale)
+	_, err = cfg.KubeClient.AppsV1().StatefulSets(namespace).UpdateScale(context.TODO(), statefulSetName, currentScale, metav1.UpdateOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("statefulset_name", statefulSetName).

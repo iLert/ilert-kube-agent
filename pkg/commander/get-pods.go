@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,7 @@ func GetPodsHandler(ctx *gin.Context, cfg *config.Config) {
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
 	}
-	pods, err := cfg.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	pods, err := cfg.KubeClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Err(err).Str("namespace", namespace).Msg("Failed to list pods")
 		ctx.PureJSON(http.StatusInternalServerError, gin.H{"message": "Failed to list pods"})

@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/robfig/cron/v3"
@@ -31,7 +32,7 @@ func stopPodMetricsChecker() {
 }
 
 func checkPods(cfg *config.Config) {
-	pods, err := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
+	pods, err := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
 	}

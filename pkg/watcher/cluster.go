@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -55,7 +56,7 @@ func analyzeClusterStatus(cfg *config.Config) error {
 	incidentKeyClient := fmt.Sprintf("%s-client", clusterKey)
 	incidentRefClient := incident.GetIncidentRef(cfg.AgentKubeClient, incidentKeyClient, cfg.Settings.Namespace)
 
-	_, err := cfg.KubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
+	_, err := cfg.KubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get nodes from apiserver")
 		if incidentRefClient == nil && cfg.Alarms.Cluster.Enabled {
@@ -76,7 +77,7 @@ func analyzeClusterStatus(cfg *config.Config) error {
 	incidentKeyHealth := fmt.Sprintf("%s-health", clusterKey)
 	incidentRefHealth := incident.GetIncidentRef(cfg.AgentKubeClient, incidentKeyClient, cfg.Settings.Namespace)
 	path := "/healthz"
-	content, err := cfg.KubeClient.Discovery().RESTClient().Get().AbsPath(path).DoRaw()
+	content, err := cfg.KubeClient.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.TODO())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to health info from apiserver")
 		return err
