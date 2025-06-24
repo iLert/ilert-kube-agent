@@ -21,7 +21,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
+	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/alert/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -53,8 +53,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=ilert.com, Version=v1
-	case v1.SchemeGroupVersion.WithResource("incidents"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ilert().V1().Incidents().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("alerts"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ilert().V1().Alerts().Informer()}, nil
 
 	}
 

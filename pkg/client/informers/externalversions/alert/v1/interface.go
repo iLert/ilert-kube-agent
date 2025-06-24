@@ -24,8 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// Incidents returns a IncidentInformer.
-	Incidents() IncidentInformer
+	// Alerts returns a AlertInformer.
+	Alerts() AlertInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Incidents returns a IncidentInformer.
-func (v *version) Incidents() IncidentInformer {
-	return &incidentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// Alerts returns a AlertInformer.
+func (v *version) Alerts() AlertInformer {
+	return &alertInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

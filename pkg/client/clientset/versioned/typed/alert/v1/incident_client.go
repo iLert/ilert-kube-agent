@@ -19,14 +19,14 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
+	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/alert/v1"
 	"github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
 type IlertV1Interface interface {
 	RESTClient() rest.Interface
-	IncidentsGetter
+	AlertsGetter
 }
 
 // IlertV1Client is used to interact with features provided by the ilert.com group.
@@ -34,8 +34,8 @@ type IlertV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *IlertV1Client) Incidents(namespace string) IncidentInterface {
-	return newIncidents(c, namespace)
+func (c *IlertV1Client) Alerts(namespace string) AlertInterface {
+	return newAlerts(c, namespace)
 }
 
 // NewForConfig creates a new IlertV1Client for the given config.

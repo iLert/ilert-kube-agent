@@ -5,7 +5,7 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/ilert/ilert-kube-agent.svg?maxAge=604800)](https://hub.docker.com/r/ilert/ilert-kube-agent)
 
 ilert-kube-agent is a service that listens to the Kubernetes API
-server and generates incidents about the health state of the pods and the nodes.
+server and generates alerts about the health state of the pods and the nodes.
 
 <sub>Node alert example:</sup>
 ![Node alert example](img/slack_node_cpu_alert.png)

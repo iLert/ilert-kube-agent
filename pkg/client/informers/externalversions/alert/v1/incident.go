@@ -21,69 +21,69 @@ package v1
 import (
 	time "time"
 
-	incidentv1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
+	alertv1 "github.com/iLert/ilert-kube-agent/pkg/apis/alert/v1"
 	versioned "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/iLert/ilert-kube-agent/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/iLert/ilert-kube-agent/pkg/client/listers/incident/v1"
+	v1 "github.com/iLert/ilert-kube-agent/pkg/client/listers/alert/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// IncidentInformer provides access to a shared informer and lister for
-// Incidents.
-type IncidentInformer interface {
+// AlertInformer provides access to a shared informer and lister for
+// Alerts.
+type AlertInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.IncidentLister
+	Lister() v1.AlertLister
 }
 
-type incidentInformer struct {
+type alertInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewIncidentInformer constructs a new informer for Incident type.
+// NewAlertInformer constructs a new informer for Alert type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewIncidentInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredIncidentInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewAlertInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredAlertInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredIncidentInformer constructs a new informer for Incident type.
+// NewFilteredAlertInformer constructs a new informer for Alert type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredIncidentInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredAlertInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.IlertV1().Incidents(namespace).List(options)
+				return client.IlertV1().Alerts(namespace).List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.IlertV1().Incidents(namespace).Watch(options)
+				return client.IlertV1().Alerts(namespace).Watch(options)
 			},
 		},
-		&incidentv1.Incident{},
+		&alertv1.Alert{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *incidentInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredIncidentInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *alertInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredAlertInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *incidentInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&incidentv1.Incident{}, f.defaultInformer)
+func (f *alertInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&alertv1.Alert{}, f.defaultInformer)
 }
 
-func (f *incidentInformer) Lister() v1.IncidentLister {
-	return v1.NewIncidentLister(f.Informer().GetIndexer())
+func (f *alertInformer) Lister() v1.AlertLister {
+	return v1.NewAlertLister(f.Informer().GetIndexer())
 }

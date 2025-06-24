@@ -1,4 +1,4 @@
-package incident
+package alert
 
 import (
 	"errors"
@@ -7,9 +7,9 @@ import (
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/iLert/ilert-go"
+	"github.com/iLert/ilert-go/v3"
 	shared "github.com/iLert/ilert-kube-agent"
-	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
+	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/alert/v1"
 	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/utils"
@@ -20,7 +20,7 @@ var ilertClient *ilert.Client
 // CreateEvent creates an alert event
 func CreateEvent(
 	cfg *config.Config,
-	links []ilert.IncidentLink,
+	links []ilert.AlertLink,
 	alertKey string,
 	summary string,
 	details string,
@@ -38,13 +38,13 @@ func CreateEvent(
 	}
 
 	event := &ilert.Event{
-		IncidentKey: alertKey,
-		Summary:     summary,
-		Details:     details,
-		EventType:   eventType,
-		APIKey:      cfg.Settings.APIKey,
-		Priority:    priority,
-		Links:       links,
+		AlertKey:  alertKey,
+		Summary:   summary,
+		Details:   details,
+		EventType: eventType,
+		APIKey:    cfg.Settings.APIKey,
+		Priority:  priority,
+		Links:     links,
 		CustomDetails: map[string]interface{}{
 			"labels": labels,
 		},
@@ -67,56 +67,56 @@ func CreateEvent(
 	return nil
 }
 
-// CreateIncidentRef definition
-func CreateIncidentRef(agentKubeClient *agentclientset.Clientset, name string, namespace string, incidentID *int64, summary string, details string, incidentType string) {
+// CreateAlertRef definition
+func CreateAlertRef(agentKubeClient *agentclientset.Clientset, name string, namespace string, alertID *int64, summary string, details string, alertType string) {
 	if agentKubeClient == nil {
 		return
 	}
-	if incidentID != nil && *incidentID > 0 {
-		log.Debug().Int64("incident_id", *incidentID).Str("name", name).Str("namespace", namespace).Msg("Creating incident ref")
-		incident := &v1.Incident{
+	if alertID != nil && *alertID > 0 {
+		log.Debug().Int64("alert_id", *alertID).Str("name", name).Str("namespace", namespace).Msg("Creating alert ref")
+		alert := &v1.Alert{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
 			},
-			Spec: v1.IncidentSpec{
-				ID:      *incidentID,
+			Spec: v1.AlertSpec{
+				ID:      *alertID,
 				Summary: summary,
 				Details: details,
-				Type:    incidentType,
+				Type:    alertType,
 			},
 		}
-		_, err := agentKubeClient.IlertV1().Incidents(namespace).Create(incident)
+		_, err := agentKubeClient.IlertV1().Alerts(namespace).Create(alert)
 		if err != nil {
-			log.Debug().Err(err).Msg("Failed to create incident ref")
+			log.Debug().Err(err).Msg("Failed to create alert ref")
 		}
 	}
 }
 
-// GetIncidentRef definition
-func GetIncidentRef(agentKubeClient *agentclientset.Clientset, name string, namespace string) *v1.Incident {
+// GetAlertRef definition
+func GetAlertRef(agentKubeClient *agentclientset.Clientset, name string, namespace string) *v1.Alert {
 	if agentKubeClient == nil {
 		return nil
 	}
-	incident, err := agentKubeClient.IlertV1().Incidents(namespace).Get(name, metav1.GetOptions{})
+	alert, err := agentKubeClient.IlertV1().Alerts(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		// log.Debug().Err(err).Msg("Failed to get incident ref")
+		// log.Debug().Err(err).Msg("Failed to get alert ref")
 		return nil
 	}
 
-	log.Debug().Str("name", name).Str("namespace", namespace).Msg("Got incident ref")
+	log.Debug().Str("name", name).Str("namespace", namespace).Msg("Got alert ref")
 
-	return incident
+	return alert
 }
 
-// DeleteIncidentRef definition
-func DeleteIncidentRef(agentKubeClient *agentclientset.Clientset, name string, namespace string) {
+// DeleteAlertRef definition
+func DeleteAlertRef(agentKubeClient *agentclientset.Clientset, name string, namespace string) {
 	if agentKubeClient == nil {
 		return
 	}
-	log.Debug().Str("name", name).Str("namespace", namespace).Msg("Deleting incident ref")
-	err := agentKubeClient.IlertV1().Incidents(namespace).Delete(name, &metav1.DeleteOptions{})
+	log.Debug().Str("name", name).Str("namespace", namespace).Msg("Deleting alert ref")
+	err := agentKubeClient.IlertV1().Alerts(namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
-		log.Debug().Err(err).Msg("Failed to create incident ref")
+		log.Debug().Err(err).Msg("Failed to create alert ref")
 	}
 }

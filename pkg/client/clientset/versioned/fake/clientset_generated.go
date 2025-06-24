@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
-	ilertv1 "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/typed/incident/v1"
-	fakeilertv1 "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/typed/incident/v1/fake"
+	ilertv1 "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/typed/alert/v1"
+	fakeilertv1 "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/typed/alert/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

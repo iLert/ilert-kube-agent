@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	ilertv1 "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/typed/incident/v1"
+	ilertv1 "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/typed/alert/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

@@ -2,20 +2,20 @@ package storage
 
 // Storage prometheus metrics storage
 type Storage struct {
-	incidentsCreatedCount float64
+	alertsCreatedCount float64
 }
 
 // Init initialize storage
 func (storage *Storage) Init() {
-	storage.incidentsCreatedCount = 0
+	storage.alertsCreatedCount = 0
 }
 
-// GetIncidentsCreatedCount returns created incidents count
-func (storage *Storage) GetIncidentsCreatedCount() float64 {
-	return storage.incidentsCreatedCount
+// GetAlertsCreatedCount returns created alerts count
+func (storage *Storage) GetAlertsCreatedCount() float64 {
+	return storage.alertsCreatedCount
 }
 
-// IncreaseIncidentsCreatedCount increases created incidents count
-func (storage *Storage) IncreaseIncidentsCreatedCount() {
-	storage.incidentsCreatedCount++
+// IncreaseAlertsCreatedCount increases created alerts count
+func (storage *Storage) IncreaseAlertsCreatedCount() {
+	storage.alertsCreatedCount++
 }

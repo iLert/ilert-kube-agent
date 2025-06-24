@@ -7,9 +7,9 @@ import (
 
 	"github.com/cbroglie/mustache"
 	"github.com/dustin/go-humanize"
-	"github.com/iLert/ilert-go"
+	"github.com/iLert/ilert-go/v3"
+	"github.com/iLert/ilert-kube-agent/pkg/alert"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
-	"github.com/iLert/ilert-kube-agent/pkg/incident"
 	"github.com/rs/zerolog/log"
 	api "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,14 +51,14 @@ func getNodeMustacheValues(node *api.Node) map[string]string {
 	}
 }
 
-func getNodeLinks(cfg *config.Config, node *api.Node) []ilert.IncidentLink {
+func getNodeLinks(cfg *config.Config, node *api.Node) []ilert.AlertLink {
 	mustacheValues := getNodeMustacheValues(node)
 
-	links := make([]ilert.IncidentLink, 0)
+	links := make([]ilert.AlertLink, 0)
 	for _, link := range cfg.Links.Nodes {
 		url, err := mustache.Render(link.Href, mustacheValues)
 		if err == nil && url != "" {
-			links = append(links, ilert.IncidentLink{
+			links = append(links, ilert.AlertLink{
 				Href: url,
 				Text: link.Name,
 			})
@@ -69,7 +69,7 @@ func getNodeLinks(cfg *config.Config, node *api.Node) []ilert.IncidentLink {
 
 func analyzeNodeStatus(node *api.Node, cfg *config.Config) {
 	nodeKey := getNodeKey(node)
-	incidentRef := incident.GetIncidentRef(cfg.AgentKubeClient, nodeKey, cfg.Settings.Namespace)
+	alertRef := alert.GetAlertRef(cfg.AgentKubeClient, nodeKey, cfg.Settings.Namespace)
 
 	labels := map[string]string{
 		"namespace":       node.GetNamespace(),
@@ -77,11 +77,11 @@ func analyzeNodeStatus(node *api.Node, cfg *config.Config) {
 		"resourceVersion": node.GetResourceVersion(),
 	}
 
-	if node.Status.Phase == api.NodeTerminated && cfg.Alarms.Nodes.Terminate.Enabled && incidentRef == nil {
+	if node.Status.Phase == api.NodeTerminated && cfg.Alarms.Nodes.Terminate.Enabled && alertRef == nil {
 		summary := fmt.Sprintf("Node %s terminated", node.GetName())
 		details := getNodeDetails(cfg.KubeClient, node)
 		links := getNodeLinks(cfg, node)
-		incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Terminate.Priority, labels)
+		alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Terminate.Priority, labels)
 	}
 }
 
@@ -96,7 +96,7 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 		"resourceVersion": node.GetResourceVersion(),
 	}
 	nodeKey := getNodeKey(node)
-	incidentRef := incident.GetIncidentRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace)
+	alertRef := alert.GetAlertRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace)
 
 	nodeMetrics, err := cfg.MetricsClient.MetricsV1beta1().NodeMetricses().Get(context.TODO(), node.GetName(), metav1.GetOptions{})
 	if err != nil {
@@ -131,11 +131,11 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 				Msg("Checking CPU limit")
 			if cpuUsage >= (float64(cfg.Alarms.Nodes.Resources.CPU.Threshold) * (cpuLimit / 100)) {
 				healthy = false
-				if incidentRef == nil {
+				if alertRef == nil {
 					summary := fmt.Sprintf("Node %s CPU limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.CPU.Threshold)
 					details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 					links := getNodeLinks(cfg, node)
-					incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.CPU.Priority, labels)
+					alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.CPU.Priority, labels)
 				}
 			}
 		}
@@ -151,18 +151,18 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 				Msg("Checking memory limit")
 			if memoryUsage >= (int64(cfg.Alarms.Nodes.Resources.Memory.Threshold) * (memoryLimit / 100)) {
 				healthy = false
-				if incidentRef == nil {
+				if alertRef == nil {
 					summary := fmt.Sprintf("Node %s memory limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.Memory.Threshold)
 					details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 					links := getNodeLinks(cfg, node)
-					incident.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Memory.Priority, labels)
+					alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Memory.Priority, labels)
 				}
 			}
 		}
 	}
 
-	if healthy && incidentRef != nil && incidentRef.Spec.ID > 0 && incidentRef.Spec.Type == "resources" {
-		incident.CreateEvent(cfg, nil, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, "", labels)
+	if healthy && alertRef != nil && alertRef.Spec.ID > 0 && alertRef.Spec.Type == "resources" {
+		alert.CreateEvent(cfg, nil, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, "", labels)
 	}
 	return nil
 }

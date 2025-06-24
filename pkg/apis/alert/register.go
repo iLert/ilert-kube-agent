@@ -1,4 +1,4 @@
-package incident
+package alert
 
 const (
 	// GroupName definition

@@ -6,8 +6,8 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/iLert/ilert-kube-agent/pkg/alert"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
-	"github.com/iLert/ilert-kube-agent/pkg/incident"
 )
 
 var podInformerStopper chan struct{}
@@ -25,7 +25,7 @@ func startPodInformer(cfg *config.Config) {
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*api.Pod)
 			log.Debug().Interface("pod", pod.Name).Msg("Delete Pod")
-			incident.DeleteIncidentRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace())
+			alert.DeleteAlertRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace())
 		},
 	})
 

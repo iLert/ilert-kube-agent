@@ -22,7 +22,7 @@ import (
 	"context"
 	"time"
 
-	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
+	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/alert/v1"
 	scheme "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -30,45 +30,45 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-// IncidentsGetter has a method to return a IncidentInterface.
+// AlertsGetter has a method to return a AlertInterface.
 // A group's client should implement this interface.
-type IncidentsGetter interface {
-	Incidents(namespace string) IncidentInterface
+type AlertsGetter interface {
+	Alerts(namespace string) AlertInterface
 }
 
-// IncidentInterface has methods to work with Incident resources.
-type IncidentInterface interface {
-	Create(*v1.Incident) (*v1.Incident, error)
-	Update(*v1.Incident) (*v1.Incident, error)
+// AlertInterface has methods to work with Alert resources.
+type AlertInterface interface {
+	Create(*v1.Alert) (*v1.Alert, error)
+	Update(*v1.Alert) (*v1.Alert, error)
 	Delete(name string, options *metav1.DeleteOptions) error
 	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.Incident, error)
-	List(opts metav1.ListOptions) (*v1.IncidentList, error)
+	Get(name string, options metav1.GetOptions) (*v1.Alert, error)
+	List(opts metav1.ListOptions) (*v1.AlertList, error)
 	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Incident, err error)
-	IncidentExpansion
+	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Alert, err error)
+	AlertExpansion
 }
 
-// incidents implements IncidentInterface
-type incidents struct {
+// alerts implements AlertInterface
+type alerts struct {
 	client rest.Interface
 	ns     string
 }
 
-// newIncidents returns a Incidents
-func newIncidents(c *IlertV1Client, namespace string) *incidents {
-	return &incidents{
+// newAlerts returns a Alerts
+func newAlerts(c *IlertV1Client, namespace string) *alerts {
+	return &alerts{
 		client: c.RESTClient(),
 		ns:     namespace,
 	}
 }
 
-// Get takes name of the incident, and returns the corresponding incident object, and an error if there is any.
-func (c *incidents) Get(name string, options metav1.GetOptions) (result *v1.Incident, err error) {
-	result = &v1.Incident{}
+// Get takes name of the alert, and returns the corresponding alert object, and an error if there is any.
+func (c *alerts) Get(name string, options metav1.GetOptions) (result *v1.Alert, err error) {
+	result = &v1.Alert{}
 	err = c.client.Get().
 		Namespace(c.ns).
-		Resource("incidents").
+		Resource("alerts").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
 		Do(context.TODO()).
@@ -76,16 +76,16 @@ func (c *incidents) Get(name string, options metav1.GetOptions) (result *v1.Inci
 	return
 }
 
-// List takes label and field selectors, and returns the list of Incidents that match those selectors.
-func (c *incidents) List(opts metav1.ListOptions) (result *v1.IncidentList, err error) {
+// List takes label and field selectors, and returns the list of Alerts that match those selectors.
+func (c *alerts) List(opts metav1.ListOptions) (result *v1.AlertList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
 	}
-	result = &v1.IncidentList{}
+	result = &v1.AlertList{}
 	err = c.client.Get().
 		Namespace(c.ns).
-		Resource("incidents").
+		Resource("alerts").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
 		Do(context.TODO()).
@@ -93,8 +93,8 @@ func (c *incidents) List(opts metav1.ListOptions) (result *v1.IncidentList, err 
 	return
 }
 
-// Watch returns a watch.Interface that watches the requested incidents.
-func (c *incidents) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+// Watch returns a watch.Interface that watches the requested alerts.
+func (c *alerts) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -102,42 +102,42 @@ func (c *incidents) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
-		Resource("incidents").
+		Resource("alerts").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
 		Watch(context.TODO())
 }
 
-// Create takes the representation of a incident and creates it.  Returns the server's representation of the incident, and an error, if there is any.
-func (c *incidents) Create(incident *v1.Incident) (result *v1.Incident, err error) {
-	result = &v1.Incident{}
+// Create takes the representation of a alert and creates it.  Returns the server's representation of the alert, and an error, if there is any.
+func (c *alerts) Create(alert *v1.Alert) (result *v1.Alert, err error) {
+	result = &v1.Alert{}
 	err = c.client.Post().
 		Namespace(c.ns).
-		Resource("incidents").
-		Body(incident).
+		Resource("alerts").
+		Body(alert).
 		Do(context.TODO()).
 		Into(result)
 	return
 }
 
-// Update takes the representation of a incident and updates it. Returns the server's representation of the incident, and an error, if there is any.
-func (c *incidents) Update(incident *v1.Incident) (result *v1.Incident, err error) {
-	result = &v1.Incident{}
+// Update takes the representation of a alert and updates it. Returns the server's representation of the alert, and an error, if there is any.
+func (c *alerts) Update(alert *v1.Alert) (result *v1.Alert, err error) {
+	result = &v1.Alert{}
 	err = c.client.Put().
 		Namespace(c.ns).
-		Resource("incidents").
-		Name(incident.Name).
-		Body(incident).
+		Resource("alerts").
+		Name(alert.Name).
+		Body(alert).
 		Do(context.TODO()).
 		Into(result)
 	return
 }
 
-// Delete takes name of the incident and deletes it. Returns an error if one occurs.
-func (c *incidents) Delete(name string, options *metav1.DeleteOptions) error {
+// Delete takes name of the alert and deletes it. Returns an error if one occurs.
+func (c *alerts) Delete(name string, options *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
-		Resource("incidents").
+		Resource("alerts").
 		Name(name).
 		Body(options).
 		Do(context.TODO()).
@@ -145,14 +145,14 @@ func (c *incidents) Delete(name string, options *metav1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *incidents) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *alerts) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
 	var timeout time.Duration
 	if listOptions.TimeoutSeconds != nil {
 		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
-		Resource("incidents").
+		Resource("alerts").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
 		Body(options).
@@ -160,12 +160,12 @@ func (c *incidents) DeleteCollection(options *metav1.DeleteOptions, listOptions 
 		Error()
 }
 
-// Patch applies the patch and returns the patched incident.
-func (c *incidents) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Incident, err error) {
-	result = &v1.Incident{}
+// Patch applies the patch and returns the patched alert.
+func (c *alerts) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Alert, err error) {
+	result = &v1.Alert{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
-		Resource("incidents").
+		Resource("alerts").
 		SubResource(subresources...).
 		Name(name).
 		Body(data).

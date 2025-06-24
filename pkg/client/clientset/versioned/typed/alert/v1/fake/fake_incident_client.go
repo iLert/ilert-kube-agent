@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1 "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/typed/incident/v1"
+	v1 "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned/typed/alert/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
@@ -28,8 +28,8 @@ type FakeIlertV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeIlertV1) Incidents(namespace string) v1.IncidentInterface {
-	return &FakeIncidents{c, namespace}
+func (c *FakeIlertV1) Alerts(namespace string) v1.AlertInterface {
+	return &FakeAlerts{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

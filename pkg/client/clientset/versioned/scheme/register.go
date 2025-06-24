@@ -19,7 +19,7 @@ limitations under the License.
 package scheme
 
 import (
-	ilertv1 "github.com/iLert/ilert-kube-agent/pkg/apis/incident/v1"
+	ilertv1 "github.com/iLert/ilert-kube-agent/pkg/apis/alert/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
