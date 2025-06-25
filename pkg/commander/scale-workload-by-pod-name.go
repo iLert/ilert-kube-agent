@@ -52,7 +52,7 @@ func ScaleWorkloadByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 }
 
 func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string, replicas int64) (error, bool) {
-	workload, err, isPodNotFound := findWorkloadByPodName(clientset, namespace, podName)
+	workload, err, isPodNotFound := FindWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
@@ -62,9 +62,9 @@ func scaleWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName 
 	}
 
 	switch workload.Type {
-	case "deployment":
+	case WorkloadTypeDeployment:
 		return scaleDeployment(clientset, namespace, workload.Name, replicas), false
-	case "statefulset":
+	case WorkloadTypeStatefulSet:
 		return scaleStatefulSet(clientset, namespace, workload.Name, replicas), false
 	default:
 		log.Error().

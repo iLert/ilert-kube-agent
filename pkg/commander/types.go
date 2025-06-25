@@ -23,10 +23,17 @@ type ContainerResourceRequirements struct {
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 }
 
+type WorkloadType string
+
 type WorkloadInfo struct {
-	Type string // "deployment" or "statefulset"
+	Type WorkloadType
 	Name string
 }
+
+const (
+	WorkloadTypeDeployment  WorkloadType = "deployment"
+	WorkloadTypeStatefulSet WorkloadType = "statefulset"
+)
 
 type ResourceLimits struct {
 	CPULimit      *string `json:"cpuLimit,omitempty"`

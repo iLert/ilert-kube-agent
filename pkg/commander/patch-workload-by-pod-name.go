@@ -64,7 +64,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 }
 
 func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits) (error, bool) {
-	workload, err, isPodNotFound := findWorkloadByPodName(clientset, namespace, podName)
+	workload, err, isPodNotFound := FindWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
@@ -74,9 +74,9 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 	}
 
 	switch workload.Type {
-	case "deployment":
+	case WorkloadTypeDeployment:
 		return setDeploymentResources(clientset, namespace, workload.Name, resources), false
-	case "statefulset":
+	case WorkloadTypeStatefulSet:
 		return setStatefulSetResources(clientset, namespace, workload.Name, resources), false
 	default:
 		log.Error().
@@ -87,7 +87,7 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 	}
 }
 
-func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string) (*WorkloadInfo, error, bool) {
+func FindWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName string) (*WorkloadInfo, error, bool) {
 	pod, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
@@ -115,13 +115,13 @@ func findWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName s
 			}
 			for _, rsOwner := range rs.OwnerReferences {
 				if rsOwner.Kind == "Deployment" {
-					return &WorkloadInfo{Type: "deployment", Name: rsOwner.Name}, nil, false
+					return &WorkloadInfo{Type: WorkloadTypeDeployment, Name: rsOwner.Name}, nil, false
 				}
 			}
 		case "StatefulSet":
-			return &WorkloadInfo{Type: "statefulset", Name: owner.Name}, nil, false
+			return &WorkloadInfo{Type: WorkloadTypeStatefulSet, Name: owner.Name}, nil, false
 		case "Deployment":
-			return &WorkloadInfo{Type: "deployment", Name: owner.Name}, nil, false
+			return &WorkloadInfo{Type: WorkloadTypeDeployment, Name: owner.Name}, nil, false
 		}
 	}
 

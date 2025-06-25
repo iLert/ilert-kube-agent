@@ -12,6 +12,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/iLert/ilert-go/v3"
 	"github.com/iLert/ilert-kube-agent/pkg/alert"
+	"github.com/iLert/ilert-kube-agent/pkg/commander"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/utils"
 	"github.com/rs/zerolog/log"
@@ -116,14 +117,7 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 	podKey := getPodKey(pod)
 	alertRef := alert.GetAlertRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace())
 
-	labels := map[string]string{
-		"namespace":       pod.GetNamespace(),
-		"podName":         pod.GetName(),
-		"resourceVersion": pod.GetResourceVersion(),
-		"app":             getLabel(pod, "app"),
-		"stage":           getLabel(pod, "stage"),
-		"version":         getLabel(pod, "version"),
-	}
+	labels := getEventLabelsFromPod(pod, cfg.KubeClient)
 
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		if containerStatus.State.Terminated != nil &&
@@ -170,14 +164,7 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 		return err
 	}
 
-	labels := map[string]string{
-		"namespace":       pod.GetNamespace(),
-		"podName":         pod.GetName(),
-		"resourceVersion": pod.GetResourceVersion(),
-		"app":             getLabel(pod, "app"),
-		"stage":           getLabel(pod, "stage"),
-		"version":         getLabel(pod, "version"),
-	}
+	labels := getEventLabelsFromPod(pod, cfg.KubeClient)
 
 	healthy := true
 	podContainers := pod.Spec.Containers
@@ -256,4 +243,34 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+func getEventLabelsFromPod(pod *api.Pod, clientset *kubernetes.Clientset) map[string]string {
+	podNamespace := pod.GetNamespace()
+	podName := pod.GetName()
+
+	labels := map[string]string{
+		"namespace":       podNamespace,
+		"podName":         podName,
+		"resourceVersion": pod.GetResourceVersion(),
+		"node":            pod.Spec.NodeName,
+		"app":             getLabel(pod, "app"),
+		"stage":           getLabel(pod, "stage"),
+		"version":         getLabel(pod, "version"),
+	}
+
+	workload, err, _ := commander.FindWorkloadByPodName(clientset, podNamespace, podName)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to find workload by pod name")
+	} else {
+		labels["workloadType"] = string(workload.Type)
+		switch workload.Type {
+		case commander.WorkloadTypeDeployment:
+			labels[string(commander.WorkloadTypeDeployment)] = workload.Name
+		case commander.WorkloadTypeStatefulSet:
+			labels[string(commander.WorkloadTypeStatefulSet)] = workload.Name
+		}
+	}
+
+	return labels
 }
