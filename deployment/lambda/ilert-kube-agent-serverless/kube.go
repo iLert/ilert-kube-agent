@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 
@@ -52,7 +53,10 @@ func getKubeConfig(clusterName string, region string) (*rest.Config, error) {
 		return nil, err
 	}
 
-	tkn, err := gen.Get(*clusterInfo.Cluster.Name)
+	tkn, err := gen.GetWithOptions(context.TODO(), &token.GetTokenOptions{
+		ClusterID: *clusterInfo.Cluster.Name,
+		Region:    region,
+	})
 	if err != nil {
 		return nil, err
 	}
