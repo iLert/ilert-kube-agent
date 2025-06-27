@@ -3,12 +3,16 @@ package commander
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/rs/zerolog/log"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,6 +29,16 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 	namespace := ctx.Query("namespace")
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
+	}
+	var newPodWaitTimeoutSeconds int64 = 4
+	newPodWaitTimeoutSecondsQuery := ctx.Query("newPodWaitTimeoutSeconds")
+	newPodWaitTimeoutSecondsValue, err := strconv.ParseInt(newPodWaitTimeoutSecondsQuery, 10, 32)
+	if newPodWaitTimeoutSecondsQuery != "" && (err != nil || newPodWaitTimeoutSecondsValue < 0 || newPodWaitTimeoutSecondsValue > 10) {
+		log.Warn().Msg("Invalid newPodWaitTimeoutSeconds")
+		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Invalid newPodWaitTimeoutSeconds"})
+		return
+	} else if newPodWaitTimeoutSecondsQuery != "" {
+		newPodWaitTimeoutSeconds = newPodWaitTimeoutSecondsValue
 	}
 
 	resources := &ResourceLimits{}
@@ -46,7 +60,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	err, isPodNotFound := setResourcesByPodName(cfg.KubeClient, namespace, podName, resources)
+	newPodName, err, isPodNotFound := setResourcesByPodName(cfg.KubeClient, namespace, podName, resources, time.Duration(newPodWaitTimeoutSeconds)*time.Second)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
@@ -60,41 +74,44 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	ctx.PureJSON(http.StatusOK, gin.H{})
+	ctx.PureJSON(http.StatusOK, gin.H{
+		"newPodName": newPodName,
+	})
 }
 
-func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits) (error, bool) {
+func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits, newPodWaitTimeout time.Duration) (*string, error, bool) {
 	workload, err, isPodNotFound := FindWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("failed to find workload for pod")
-		return fmt.Errorf("failed to find workload for pod %s: %v", podName, err), isPodNotFound
+		return nil, fmt.Errorf("failed to find workload for pod %s: %v", podName, err), isPodNotFound
 	}
 
 	switch workload.Type {
 	case WorkloadTypeDeployment:
-		return setDeploymentResources(clientset, namespace, workload.Name, resources), false
+		newPodName, err := setDeploymentResources(clientset, namespace, workload.Name, resources, newPodWaitTimeout)
+		return newPodName, err, false
 	case WorkloadTypeStatefulSet:
-		return setStatefulSetResources(clientset, namespace, workload.Name, resources), false
+		return nil, setStatefulSetResources(clientset, namespace, workload.Name, resources), false
 	default:
 		log.Error().
 			Str("pod_name", podName).
 			Str("namespace", namespace).
 			Msg("unsupported workload type")
-		return fmt.Errorf("unsupported workload type: %s", workload.Type), false
+		return nil, fmt.Errorf("unsupported workload type: %s", workload.Type), false
 	}
 }
 
-func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *ResourceLimits) error {
+func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *ResourceLimits, newPodWaitTimeout time.Duration) (*string, error) {
 	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
 			Str("deployment_name", deploymentName).
 			Str("namespace", namespace).
 			Msg("failed to get deployment")
-		return fmt.Errorf("failed to get deployment: %v", err)
+		return nil, fmt.Errorf("failed to get deployment: %v", err)
 	}
 
 	var patches []map[string]interface{}
@@ -104,7 +121,7 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 	}
 
 	if len(patches) == 0 {
-		return fmt.Errorf("no resource changes specified")
+		return nil, fmt.Errorf("no resource changes specified")
 	}
 
 	patchBytes, err := json.Marshal(patches)
@@ -113,11 +130,92 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 			Str("deployment_name", deploymentName).
 			Str("namespace", namespace).
 			Msg("failed to marshal patches")
-		return fmt.Errorf("failed to marshal patches: %v", err)
+		return nil, fmt.Errorf("failed to marshal patches: %v", err)
+	}
+
+	_, _, currentRS, err := GetAllReplicaSets(deployment, clientset.AppsV1())
+
+	if err != nil {
+		return nil, err
 	}
 
 	_, err = clientset.AppsV1().Deployments(namespace).Patch(context.TODO(), deploymentName, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
-	return err
+
+	if err != nil {
+		return nil, err
+	}
+
+	chNewPodName := make(chan *string, 1)
+	chError := make(chan error, 1)
+
+	go getNewPodName(deployment, currentRS, clientset, newPodWaitTimeout, chNewPodName, chError)
+
+	newPodName := <-chNewPodName
+	err = <-chError
+
+	if err != nil {
+		log.Warn().Err(err).
+			Str("deployment_name", deploymentName).
+			Str("namespace", namespace).
+			Msg("failed to wait for the new pod name")
+		return nil, nil
+	}
+	return newPodName, nil
+}
+
+func getNewPodName(deployment *v1.Deployment, currentRS *v1.ReplicaSet, clientset *kubernetes.Clientset, timeout time.Duration, chPodName chan *string, chError chan error) {
+	for start := time.Now(); start.Add(timeout).After(time.Now()); {
+		deployment, err := clientset.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Error().Err(err).
+				Str("deployment_name", deployment.Name).
+				Str("namespace", deployment.Namespace).
+				Msg("failed to get deployment")
+			chPodName <- nil
+			chError <- fmt.Errorf("failed to get deployment: %v", err)
+			return
+		}
+		_, _, newRS, err := GetAllReplicaSets(deployment, clientset.AppsV1())
+		if err != nil {
+			chPodName <- nil
+			chError <- err
+			return
+		}
+		if newRS.UID != currentRS.UID {
+			log.Info().Str("new pod-template-hash", newRS.Labels["pod-template-hash"]).Str("old pod-template-hash", currentRS.Labels["pod-template-hash"]).Msg("Found new replica set: " + newRS.Name)
+			podTemplateHash := newRS.Labels["pod-template-hash"]
+
+			for start.Add(timeout).After(time.Now()) {
+				podList, err := clientset.CoreV1().Pods(deployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "pod-template-hash=" + podTemplateHash})
+				if err != nil {
+					log.Warn().Err(err).
+						Str("deployment_name", deployment.Name).
+						Str("namespace", deployment.Namespace).
+						Msg("failed to list pods")
+					chPodName <- nil
+					chError <- fmt.Errorf("failed to list pods")
+					return
+				}
+
+				if len(podList.Items) == 0 {
+					time.Sleep(time.Second)
+					continue
+				} else {
+					newPodName := podList.Items[0].Name
+					log.Info().Interface("newPodName", newPodName).Msg("Found new pod name")
+					chPodName <- &newPodName
+					chError <- nil
+					return
+				}
+			}
+			chPodName <- nil
+			chError <- errors.New("timeout before a new replica is found")
+			return
+		}
+		time.Sleep(time.Second)
+	}
+	chPodName <- nil
+	chError <- errors.New("timeout before a new replica is found")
 }
 
 func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefulSetName string, resources *ResourceLimits) error {
