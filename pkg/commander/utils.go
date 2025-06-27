@@ -71,7 +71,7 @@ func getNewPodNameForDeployment(deployment *v1.Deployment, currentRS *v1.Replica
 			chError <- err
 			return
 		}
-		if newRS.UID != currentRS.UID {
+		if newRS != nil && currentRS != nil && newRS.UID != currentRS.UID {
 			log.Info().Str("new pod-template-hash", newRS.Labels["pod-template-hash"]).Str("old pod-template-hash", currentRS.Labels["pod-template-hash"]).Msg("Found new replica set: " + newRS.Name)
 			podTemplateHash := newRS.Labels["pod-template-hash"]
 
@@ -111,7 +111,6 @@ func getNewPodNameForDeployment(deployment *v1.Deployment, currentRS *v1.Replica
 func getNewPodNameForStatefulSet(statefulSet *v1.StatefulSet, currentRevision string, clientset *kubernetes.Clientset, timeout time.Duration, chPodName chan *string, chError chan error) {
 	for start := time.Now(); start.Add(timeout).After(time.Now()); {
 		statefulSet, err := clientset.AppsV1().StatefulSets(statefulSet.Namespace).Get(context.TODO(), statefulSet.Name, metav1.GetOptions{})
-		updateRevision := statefulSet.Status.UpdateRevision
 		if err != nil {
 			log.Error().Err(err).
 				Str("statefulset_name", statefulSet.Name).
@@ -121,6 +120,7 @@ func getNewPodNameForStatefulSet(statefulSet *v1.StatefulSet, currentRevision st
 			chError <- fmt.Errorf("failed to get statefulset: %v", err)
 			return
 		}
+		updateRevision := statefulSet.Status.UpdateRevision
 		if updateRevision != currentRevision {
 			log.Info().Str("new controller-revision-hash", updateRevision).Str("old controller-revision-hash", currentRevision).Msg("Found new replica set: " + statefulSet.Name)
 			for start.Add(timeout).After(time.Now()) {

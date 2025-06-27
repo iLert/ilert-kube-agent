@@ -28,15 +28,15 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 	if namespace == "" {
 		namespace = metav1.NamespaceAll
 	}
-	var newPodWaitTimeoutSeconds int64 = 4
-	newPodWaitTimeoutSecondsQuery := ctx.Query("newPodWaitTimeoutSeconds")
-	newPodWaitTimeoutSecondsValue, err := strconv.ParseInt(newPodWaitTimeoutSecondsQuery, 10, 32)
-	if newPodWaitTimeoutSecondsQuery != "" && (err != nil || newPodWaitTimeoutSecondsValue < 0 || newPodWaitTimeoutSecondsValue > 10) {
-		log.Warn().Msg("Invalid newPodWaitTimeoutSeconds")
-		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Invalid newPodWaitTimeoutSeconds"})
+	var waitTimeout int64 = 4
+	waitTimeoutQuery := ctx.Query("waitTimeout")
+	waitTimeoutValue, err := strconv.ParseInt(waitTimeoutQuery, 10, 32)
+	if waitTimeoutQuery != "" && (err != nil || waitTimeoutValue < 0 || waitTimeoutValue > 10) {
+		log.Warn().Msg("Invalid waitTimeoutSeconds")
+		ctx.PureJSON(http.StatusBadRequest, gin.H{"message": "Invalid waitTimeoutSeconds"})
 		return
-	} else if newPodWaitTimeoutSecondsQuery != "" {
-		newPodWaitTimeoutSeconds = newPodWaitTimeoutSecondsValue
+	} else if waitTimeoutQuery != "" {
+		waitTimeout = waitTimeoutValue
 	}
 
 	resources := &ResourceLimits{}
@@ -58,7 +58,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	newPodName, err, isPodNotFound := setResourcesByPodName(cfg.KubeClient, namespace, podName, resources, time.Duration(newPodWaitTimeoutSeconds)*time.Second)
+	newPodName, err, isPodNotFound := setResourcesByPodName(cfg.KubeClient, namespace, podName, resources, time.Duration(waitTimeout)*time.Second)
 	if err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
@@ -77,7 +77,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 	})
 }
 
-func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits, newPodWaitTimeout time.Duration) (*string, error, bool) {
+func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits, waitTimeout time.Duration) (*string, error, bool) {
 	workload, err, isPodNotFound := FindWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
 		log.Error().Err(err).
@@ -89,10 +89,10 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 
 	switch workload.Type {
 	case WorkloadTypeDeployment:
-		newPodName, err := setDeploymentResources(clientset, namespace, workload.Name, resources, newPodWaitTimeout)
+		newPodName, err := setDeploymentResources(clientset, namespace, workload.Name, resources, waitTimeout)
 		return newPodName, err, false
 	case WorkloadTypeStatefulSet:
-		newPodName, err := setStatefulSetResources(clientset, namespace, workload.Name, resources, newPodWaitTimeout)
+		newPodName, err := setStatefulSetResources(clientset, namespace, workload.Name, resources, waitTimeout)
 		return newPodName, err, false
 	default:
 		log.Error().
@@ -103,7 +103,7 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 	}
 }
 
-func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *ResourceLimits, newPodWaitTimeout time.Duration) (*string, error) {
+func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *ResourceLimits, waitTimeout time.Duration) (*string, error) {
 	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
@@ -144,7 +144,7 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 
 	chNewPodName := make(chan *string, 1)
 	chError := make(chan error, 1)
-	go getNewPodNameForDeployment(deployment, currentRS, clientset, newPodWaitTimeout, chNewPodName, chError)
+	go getNewPodNameForDeployment(deployment, currentRS, clientset, waitTimeout, chNewPodName, chError)
 	newPodName := <-chNewPodName
 	err = <-chError
 	if err != nil {
@@ -158,7 +158,7 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 	return newPodName, nil
 }
 
-func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefulSetName string, resources *ResourceLimits, newPodWaitTimeout time.Duration) (*string, error) {
+func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefulSetName string, resources *ResourceLimits, waitTimeout time.Duration) (*string, error) {
 	statefulSet, err := clientset.AppsV1().StatefulSets(namespace).Get(context.TODO(), statefulSetName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
@@ -194,7 +194,7 @@ func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefu
 
 	chNewPodName := make(chan *string, 1)
 	chError := make(chan error, 1)
-	go getNewPodNameForStatefulSet(statefulSet, statefulSet.Status.CurrentRevision, clientset, newPodWaitTimeout, chNewPodName, chError)
+	go getNewPodNameForStatefulSet(statefulSet, statefulSet.Status.CurrentRevision, clientset, waitTimeout, chNewPodName, chError)
 	newPodName := <-chNewPodName
 	err = <-chError
 	if err != nil {
