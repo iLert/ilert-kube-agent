@@ -19,8 +19,6 @@ func SetUpMcpRoutes(router *gin.Engine, cfg *config.Config) {
 	router.GET("/api/pods/:podName/logs", AuthorizedHandler(cfg, GetPodLogsHandler))
 	router.PATCH("/api/workloads/:podName", AuthorizedHandler(cfg, PatchResourcesByPodNameHandler))
 	router.PATCH("/api/scale/:podName", AuthorizedHandler(cfg, ScaleWorkloadByPodNameHandler))
-	router.PATCH("/api/deployments/:deploymentName", AuthorizedHandler(cfg, ScaleDeploymentHandler))
-	router.PATCH("/api/statefulsets/:statefulsetName", AuthorizedHandler(cfg, ScaleStatefulSetHandler))
 	router.DELETE("/api/pods/:podName", AuthorizedHandler(cfg, DeletePodHandler))
 }
 
