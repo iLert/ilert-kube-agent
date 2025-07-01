@@ -45,9 +45,7 @@ func CreateEvent(
 		APIKey:    cfg.Settings.APIKey,
 		Priority:  priority,
 		Links:     links,
-		CustomDetails: map[string]interface{}{
-			"labels": labels,
-		},
+		Labels:    labels,
 	}
 
 	log.Debug().Interface("event", event).Msg("Creating alert event")
