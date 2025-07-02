@@ -4,16 +4,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
-
-	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 )
 
 // Config definition
 type Config struct {
-	KubeConfig      *rest.Config
-	KubeClient      *kubernetes.Clientset
-	AgentKubeClient *agentclientset.Clientset
-	MetricsClient   *metrics.Clientset
+	KubeConfig    *rest.Config
+	KubeClient    *kubernetes.Clientset
+	MetricsClient *metrics.Clientset
 
 	Settings ConfigSettings `yaml:"settings"`
 	Alarms   ConfigAlarms   `yaml:"alarms"`

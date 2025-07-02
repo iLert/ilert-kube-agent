@@ -69,7 +69,6 @@ func getNodeLinks(cfg *config.Config, node *api.Node) []ilert.AlertLink {
 
 func analyzeNodeStatus(node *api.Node, cfg *config.Config) {
 	nodeKey := getNodeKey(node)
-	alertRef := alert.GetAlertRef(cfg.AgentKubeClient, nodeKey, cfg.Settings.Namespace)
 
 	labels := map[string]string{
 		"namespace":       node.GetNamespace(),
@@ -77,7 +76,7 @@ func analyzeNodeStatus(node *api.Node, cfg *config.Config) {
 		"resourceVersion": node.GetResourceVersion(),
 	}
 
-	if node.Status.Phase == api.NodeTerminated && cfg.Alarms.Nodes.Terminate.Enabled && alertRef == nil {
+	if node.Status.Phase == api.NodeTerminated && cfg.Alarms.Nodes.Terminate.Enabled {
 		summary := fmt.Sprintf("Node %s terminated", node.GetName())
 		details := getNodeDetails(cfg.KubeClient, node)
 		links := getNodeLinks(cfg, node)
@@ -96,7 +95,6 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 		"resourceVersion": node.GetResourceVersion(),
 	}
 	nodeKey := getNodeKey(node)
-	alertRef := alert.GetAlertRef(cfg.AgentKubeClient, node.GetName(), cfg.Settings.Namespace)
 
 	nodeMetrics, err := cfg.MetricsClient.MetricsV1beta1().NodeMetricses().Get(context.TODO(), node.GetName(), metav1.GetOptions{})
 	if err != nil {
@@ -131,12 +129,10 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 				Msg("Checking CPU limit")
 			if cpuUsage >= (float64(cfg.Alarms.Nodes.Resources.CPU.Threshold) * (cpuLimit / 100)) {
 				healthy = false
-				if alertRef == nil {
-					summary := fmt.Sprintf("Node %s CPU limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.CPU.Threshold)
-					details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
-					links := getNodeLinks(cfg, node)
-					alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.CPU.Priority, labels)
-				}
+				summary := fmt.Sprintf("Node %s CPU limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.CPU.Threshold)
+				details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
+				links := getNodeLinks(cfg, node)
+				alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.CPU.Priority, labels)
 			}
 		}
 	}
@@ -151,17 +147,15 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 				Msg("Checking memory limit")
 			if memoryUsage >= (int64(cfg.Alarms.Nodes.Resources.Memory.Threshold) * (memoryLimit / 100)) {
 				healthy = false
-				if alertRef == nil {
-					summary := fmt.Sprintf("Node %s memory limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.Memory.Threshold)
-					details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
-					links := getNodeLinks(cfg, node)
-					alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Memory.Priority, labels)
-				}
+				summary := fmt.Sprintf("Node %s memory limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.Memory.Threshold)
+				details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
+				links := getNodeLinks(cfg, node)
+				alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Memory.Priority, labels)
 			}
 		}
 	}
 
-	if healthy && alertRef != nil && alertRef.Spec.ID > 0 && alertRef.Spec.Type == "resources" {
+	if healthy {
 		alert.CreateEvent(cfg, nil, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, "", labels)
 	}
 	return nil

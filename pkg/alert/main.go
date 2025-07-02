@@ -5,12 +5,9 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/iLert/ilert-go/v3"
 	shared "github.com/iLert/ilert-kube-agent"
-	v1 "github.com/iLert/ilert-kube-agent/pkg/apis/alert/v1"
-	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/utils"
 )
@@ -63,58 +60,4 @@ func CreateEvent(
 	log.Info().Str("summary", summary).Str("alert_key", alertKey).Msg("Alert event created")
 
 	return nil
-}
-
-// CreateAlertRef definition
-func CreateAlertRef(agentKubeClient *agentclientset.Clientset, name string, namespace string, alertID *int64, summary string, details string, alertType string) {
-	if agentKubeClient == nil {
-		return
-	}
-	if alertID != nil && *alertID > 0 {
-		log.Debug().Int64("alert_id", *alertID).Str("name", name).Str("namespace", namespace).Msg("Creating alert ref")
-		alert := &v1.Alert{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
-			},
-			Spec: v1.AlertSpec{
-				ID:      *alertID,
-				Summary: summary,
-				Details: details,
-				Type:    alertType,
-			},
-		}
-		_, err := agentKubeClient.IlertV1().Alerts(namespace).Create(alert)
-		if err != nil {
-			log.Debug().Err(err).Msg("Failed to create alert ref")
-		}
-	}
-}
-
-// GetAlertRef definition
-func GetAlertRef(agentKubeClient *agentclientset.Clientset, name string, namespace string) *v1.Alert {
-	if agentKubeClient == nil {
-		return nil
-	}
-	alert, err := agentKubeClient.IlertV1().Alerts(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		// log.Debug().Err(err).Msg("Failed to get alert ref")
-		return nil
-	}
-
-	log.Debug().Str("name", name).Str("namespace", namespace).Msg("Got alert ref")
-
-	return alert
-}
-
-// DeleteAlertRef definition
-func DeleteAlertRef(agentKubeClient *agentclientset.Clientset, name string, namespace string) {
-	if agentKubeClient == nil {
-		return
-	}
-	log.Debug().Str("name", name).Str("namespace", namespace).Msg("Deleting alert ref")
-	err := agentKubeClient.IlertV1().Alerts(namespace).Delete(name, &metav1.DeleteOptions{})
-	if err != nil {
-		log.Debug().Err(err).Msg("Failed to create alert ref")
-	}
 }

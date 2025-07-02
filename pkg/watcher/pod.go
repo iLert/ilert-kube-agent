@@ -115,14 +115,13 @@ func getPodLinks(cfg *config.Config, node *api.Pod) []ilert.AlertLink {
 
 func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 	podKey := getPodKey(pod)
-	alertRef := alert.GetAlertRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace())
 
 	labels := getEventLabelsFromPod(pod, cfg.KubeClient)
 
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		if containerStatus.State.Terminated != nil &&
 			utils.StringContains(containerTerminatedReasons, containerStatus.State.Terminated.Reason) &&
-			cfg.Alarms.Pods.Terminate.Enabled && alertRef == nil {
+			cfg.Alarms.Pods.Terminate.Enabled {
 			summary := fmt.Sprintf("Pod %s/%s terminated - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Terminated.Reason)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
@@ -132,7 +131,7 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 
 		if containerStatus.State.Waiting != nil &&
 			utils.StringContains(containerWaitingReasons, containerStatus.State.Waiting.Reason) &&
-			cfg.Alarms.Pods.Waiting.Enabled && alertRef == nil {
+			cfg.Alarms.Pods.Waiting.Enabled {
 			summary := fmt.Sprintf("Pod %s/%s waiting - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Waiting.Reason)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
@@ -140,7 +139,7 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			break
 		}
 
-		if cfg.Alarms.Pods.Restarts.Enabled && containerStatus.RestartCount >= cfg.Alarms.Pods.Restarts.Threshold && alertRef == nil {
+		if cfg.Alarms.Pods.Restarts.Enabled && containerStatus.RestartCount >= cfg.Alarms.Pods.Restarts.Threshold {
 			summary := fmt.Sprintf("Pod %s/%s restarts threshold reached: %d", pod.GetNamespace(), pod.GetName(), containerStatus.RestartCount)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
@@ -156,7 +155,6 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 	}
 
 	podKey := getPodKey(pod)
-	alertRef := alert.GetAlertRef(cfg.AgentKubeClient, pod.GetName(), pod.GetNamespace())
 
 	podMetrics, err := cfg.MetricsClient.MetricsV1beta1().PodMetricses(pod.GetNamespace()).Get(context.TODO(), pod.GetName(), metav1.GetOptions{})
 	if err != nil {
@@ -206,12 +204,10 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 					Msg("Checking CPU limit")
 				if cpuUsage >= (float64(cfg.Alarms.Pods.Resources.CPU.Threshold) * (cpuLimit / 100)) {
 					healthy = false
-					if alertRef == nil {
-						summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.CPU.Threshold)
-						details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
-						links := getPodLinks(cfg, pod)
-						alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority, labels)
-					}
+					summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.CPU.Threshold)
+					details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
+					links := getPodLinks(cfg, pod)
+					alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority, labels)
 				}
 			}
 		}
@@ -228,17 +224,15 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 					Msg("Checking memory limit")
 				if memoryUsage >= (int64(cfg.Alarms.Pods.Resources.Memory.Threshold) * (memoryLimit / 100)) {
 					healthy = false
-					if alertRef == nil {
-						summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Memory.Threshold)
-						details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
-						links := getPodLinks(cfg, pod)
-						alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority, labels)
-					}
+					summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Memory.Threshold)
+					details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
+					links := getPodLinks(cfg, pod)
+					alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority, labels)
 				}
 			}
 		}
 	}
-	if healthy && alertRef != nil && alertRef.Spec.ID > 0 && alertRef.Spec.Type == "resources" {
+	if healthy {
 		alert.CreateEvent(cfg, nil, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "", labels)
 	}
 

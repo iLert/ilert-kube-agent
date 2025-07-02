@@ -6,8 +6,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
-
-	agentclientset "github.com/iLert/ilert-kube-agent/pkg/client/clientset/versioned"
 )
 
 // SetKubeConfig override default kube config
@@ -35,15 +33,6 @@ func (cfg *Config) initializeClients() {
 			log.Fatal().Err(err).Msg("Failed to create kube client")
 		} else {
 			cfg.KubeClient = kubeClient
-		}
-	}
-
-	if cfg.AgentKubeClient == nil {
-		agentKubeClient, err := agentclientset.NewForConfig(cfg.KubeConfig)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to create kube agent client")
-		} else {
-			cfg.AgentKubeClient = agentKubeClient
 		}
 	}
 
