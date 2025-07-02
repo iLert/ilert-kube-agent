@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/rs/zerolog/log"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,7 +40,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		waitTimeout = waitTimeoutValue
 	}
 
-	resources := &ResourceLimits{}
+	resources := &Resources{}
 	if err := ctx.ShouldBindJSON(resources); err != nil {
 		log.Error().Err(err).
 			Str("pod_name", podName).
@@ -49,7 +50,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 		return
 	}
 
-	if resources.CPULimit == nil && resources.CPURequest == nil && resources.MemoryLimit == nil && resources.MemoryRequest == nil {
+	if resources.CPULimit == nil && resources.CPURequest == nil && resources.MemoryLimit == nil && resources.MemoryRequest == nil && resources.Replicas == nil {
 		log.Warn().
 			Str("pod_name", podName).
 			Str("namespace", namespace).
@@ -77,7 +78,7 @@ func PatchResourcesByPodNameHandler(ctx *gin.Context, cfg *config.Config) {
 	})
 }
 
-func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *ResourceLimits, waitTimeout time.Duration) (*string, error, bool) {
+func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName string, resources *Resources, waitTimeout time.Duration) (*string, error, bool) {
 	workload, err, isPodNotFound := FindWorkloadByPodName(clientset, namespace, podName)
 	if err != nil {
 		log.Error().Err(err).
@@ -103,7 +104,7 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 	}
 }
 
-func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *ResourceLimits, waitTimeout time.Duration) (*string, error) {
+func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deploymentName string, resources *Resources, waitTimeout time.Duration) (*string, error) {
 	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
@@ -117,6 +118,11 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 	for i := range deployment.Spec.Template.Spec.Containers {
 		containerPatches := createContainerResourcePatches(i, &deployment.Spec.Template.Spec.Containers[i], resources)
 		patches = append(patches, containerPatches...)
+	}
+	resourcePatchCount := len(patches)
+
+	if resources.Replicas != nil {
+		patches = append(patches, createDeploymentReplicasPatch(deployment, *resources.Replicas))
 	}
 
 	if len(patches) == 0 {
@@ -142,11 +148,18 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 		return nil, err
 	}
 
+	var newPodName *string
 	chNewPodName := make(chan *string, 1)
 	chError := make(chan error, 1)
-	go getNewPodNameForDeployment(deployment, currentRS, clientset, waitTimeout, chNewPodName, chError)
-	newPodName := <-chNewPodName
-	err = <-chError
+	if resourcePatchCount > 0 {
+		go getNewPodNameForDeployment(deployment, currentRS, clientset, waitTimeout, chNewPodName, chError)
+		newPodName = <-chNewPodName
+		err = <-chError
+	} else {
+		go getRunningPodNameForDeployment(deployment, currentRS, clientset, waitTimeout, chNewPodName, chError)
+		newPodName = <-chNewPodName
+		err = <-chError
+	}
 	if err != nil {
 		log.Warn().Err(err).
 			Str("deployment_name", deploymentName).
@@ -158,7 +171,7 @@ func setDeploymentResources(clientset *kubernetes.Clientset, namespace, deployme
 	return newPodName, nil
 }
 
-func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefulSetName string, resources *ResourceLimits, waitTimeout time.Duration) (*string, error) {
+func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefulSetName string, resources *Resources, waitTimeout time.Duration) (*string, error) {
 	statefulSet, err := clientset.AppsV1().StatefulSets(namespace).Get(context.TODO(), statefulSetName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).
@@ -172,6 +185,11 @@ func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefu
 	for i := range statefulSet.Spec.Template.Spec.Containers {
 		containerPatches := createContainerResourcePatches(i, &statefulSet.Spec.Template.Spec.Containers[i], resources)
 		patches = append(patches, containerPatches...)
+	}
+	resourcePatchCount := len(patches)
+
+	if resources.Replicas != nil {
+		patches = append(patches, createStatefulSetReplicasPatch(statefulSet, *resources.Replicas))
 	}
 
 	if len(patches) == 0 {
@@ -192,11 +210,18 @@ func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefu
 		return nil, err
 	}
 
+	var newPodName *string
 	chNewPodName := make(chan *string, 1)
 	chError := make(chan error, 1)
-	go getNewPodNameForStatefulSet(statefulSet, statefulSet.Status.CurrentRevision, clientset, waitTimeout, chNewPodName, chError)
-	newPodName := <-chNewPodName
-	err = <-chError
+	if resourcePatchCount > 0 {
+		go getNewPodNameForStatefulSet(statefulSet, statefulSet.Status.CurrentRevision, clientset, waitTimeout, chNewPodName, chError)
+		newPodName = <-chNewPodName
+		err = <-chError
+	} else {
+		go getRunningPodNameForStatefulSet(statefulSet, statefulSet.Status.CurrentRevision, clientset, waitTimeout, chNewPodName, chError)
+		newPodName = <-chNewPodName
+		err = <-chError
+	}
 	if err != nil {
 		log.Warn().Err(err).
 			Str("statefulset_name", statefulSetName).
@@ -208,7 +233,7 @@ func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefu
 	return newPodName, err
 }
 
-func createContainerResourcePatches(containerIndex int, container *corev1.Container, resources *ResourceLimits) []map[string]interface{} {
+func createContainerResourcePatches(containerIndex int, container *corev1.Container, resources *Resources) []map[string]interface{} {
 	var patches []map[string]interface{}
 
 	needsResourcesInit := container.Resources.Limits == nil && container.Resources.Requests == nil
@@ -311,38 +336,74 @@ func createContainerResourcePatches(containerIndex int, container *corev1.Contai
 	return patches
 }
 
-func SetOnlyCPULimit(cpuLimit string) ResourceLimits {
-	return ResourceLimits{CPULimit: &cpuLimit}
+func createDeploymentReplicasPatch(deployment *appsv1.Deployment, replicas int64) map[string]interface{} {
+	needsReplicasInit := deployment.Spec.Replicas == nil
+
+	if needsReplicasInit {
+		return map[string]interface{}{
+			"op":    "add",
+			"path":  "/spec/replicas",
+			"value": replicas,
+		}
+	} else {
+		return map[string]interface{}{
+			"op":    "replace",
+			"path":  "/spec/replicas",
+			"value": replicas,
+		}
+	}
 }
 
-func SetOnlyMemoryLimit(memoryLimit string) ResourceLimits {
-	return ResourceLimits{MemoryLimit: &memoryLimit}
+func createStatefulSetReplicasPatch(statefulSet *appsv1.StatefulSet, replicas int64) map[string]interface{} {
+	needsReplicasInit := statefulSet.Spec.Replicas == nil
+
+	if needsReplicasInit {
+		return map[string]interface{}{
+			"op":    "add",
+			"path":  "/spec/replicas",
+			"value": replicas,
+		}
+	} else {
+		return map[string]interface{}{
+			"op":    "replace",
+			"path":  "/spec/replicas",
+			"value": replicas,
+		}
+	}
 }
 
-func SetOnlyCPURequest(cpuRequest string) ResourceLimits {
-	return ResourceLimits{CPURequest: &cpuRequest}
+func SetOnlyCPULimit(cpuLimit string) Resources {
+	return Resources{CPULimit: &cpuLimit}
 }
 
-func SetOnlyMemoryRequest(memoryRequest string) ResourceLimits {
-	return ResourceLimits{MemoryRequest: &memoryRequest}
+func SetOnlyMemoryLimit(memoryLimit string) Resources {
+	return Resources{MemoryLimit: &memoryLimit}
 }
 
-func SetLimits(cpuLimit, memoryLimit string) ResourceLimits {
-	return ResourceLimits{
+func SetOnlyCPURequest(cpuRequest string) Resources {
+	return Resources{CPURequest: &cpuRequest}
+}
+
+func SetOnlyMemoryRequest(memoryRequest string) Resources {
+	return Resources{MemoryRequest: &memoryRequest}
+}
+
+func SetLimits(cpuLimit, memoryLimit string) Resources {
+	return Resources{
 		CPULimit:    &cpuLimit,
 		MemoryLimit: &memoryLimit,
 	}
 }
 
-func SetRequests(cpuRequest, memoryRequest string) ResourceLimits {
-	return ResourceLimits{
+func SetRequests(cpuRequest, memoryRequest string) Resources {
+	return Resources{
 		CPURequest:    &cpuRequest,
 		MemoryRequest: &memoryRequest,
 	}
 }
 
-func SetAll(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) ResourceLimits {
-	return ResourceLimits{
+func SetAll(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) Resources {
+	return Resources{
 		CPULimit:      &cpuLimit,
 		MemoryLimit:   &memoryLimit,
 		CPURequest:    &cpuRequest,

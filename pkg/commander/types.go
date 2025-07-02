@@ -35,15 +35,12 @@ const (
 	WorkloadTypeStatefulSet WorkloadType = "statefulset"
 )
 
-type ResourceLimits struct {
+type Resources struct {
 	CPULimit      *string `json:"cpuLimit,omitempty"`
 	MemoryLimit   *string `json:"memoryLimit,omitempty"`
 	CPURequest    *string `json:"cpuRequest,omitempty"`
 	MemoryRequest *string `json:"memoryRequest,omitempty"`
-}
-
-type Scale struct {
-	Replicas int64 `json:"replicas"`
+	Replicas      *int64  `json:"replicas,omitempty"`
 }
 
 type DeleteOptions struct {

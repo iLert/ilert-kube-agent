@@ -155,3 +155,56 @@ func getNewPodNameForStatefulSet(statefulSet *v1.StatefulSet, currentRevision st
 	chPodName <- nil
 	chError <- errors.New("timeout before a new replica is found")
 }
+
+func getRunningPodNameForDeployment(deployment *v1.Deployment, currentRS *v1.ReplicaSet, clientset *kubernetes.Clientset, timeout time.Duration, chPodName chan *string, chError chan error) {
+	time.Sleep(timeout)
+	podList, err := clientset.CoreV1().Pods(deployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "pod-template-hash=" + currentRS.Labels["pod-template-hash"], FieldSelector: "status.phase==Running"})
+	if err != nil {
+		log.Warn().Err(err).
+			Str("deployment_name", deployment.Name).
+			Str("namespace", deployment.Namespace).
+			Msg("failed to list pods")
+		chPodName <- nil
+		chError <- fmt.Errorf("failed to list pods")
+		return
+	}
+
+	if len(podList.Items) == 0 {
+		chPodName <- nil
+		chError <- errors.New("no running pod found after timeout")
+		return
+	} else {
+		newPodName := podList.Items[0].Name
+		log.Info().Interface("newPodName", newPodName).Msg("Found running pod name")
+		chPodName <- &newPodName
+		chError <- nil
+		return
+	}
+}
+
+func getRunningPodNameForStatefulSet(statefulSet *v1.StatefulSet, currentRevision string, clientset *kubernetes.Clientset, timeout time.Duration, chPodName chan *string, chError chan error) {
+	time.Sleep(timeout)
+	podList, err := clientset.CoreV1().Pods(statefulSet.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "controller-revision-hash=" + currentRevision})
+	if err != nil {
+		log.Warn().Err(err).
+			Str("statefulset_name", statefulSet.Name).
+			Str("namespace", statefulSet.Namespace).
+			Msg("failed to list pods")
+		chPodName <- nil
+		chError <- fmt.Errorf("failed to list pods")
+		return
+	}
+
+	if len(podList.Items) == 0 {
+		chPodName <- nil
+		chError <- errors.New("no running pod found after timeout")
+		return
+	} else {
+		newPodName := podList.Items[0].Name
+		log.Info().Interface("newPodName", newPodName).Msg("Found running pod name")
+		chPodName <- &newPodName
+		chError <- nil
+		return
+	}
+
+}
