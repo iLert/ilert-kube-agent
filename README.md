@@ -44,8 +44,12 @@ helm repo update
 
 helm upgrade --install --namespace kube-systems \
     ilert-kube-agent ilert/ilert-kube-agent \
-    --set config.settings.apiKey="<YOUR KEY HERE>"
+    --set config.settings.apiKey="<YOUR KEY HERE>" \
+    --set config.settings.inClusterRoutesEnabled=true \
+    --set config.settings.httpAuthorizationKey="<HTTP AUTHORIZATION HERE>"
 ```
+
+**Note:** In-cluster HTTP routes are only functional when the `httpAuthorizationKey` is set. Make sure to set `inClusterRoutesEnabled=true`. If `httpAuthorizationKey` is not given, a random alphanumeric string with 64 characters will be generated.
 
 ### Terraform Deployment (recommended)
 
@@ -56,6 +60,7 @@ module "ilert-kube-agent" {
   source  = "iLert/ilert-kube-agent/kubernetes"
   replicas = 2
   api_key = "<YOUR KEY HERE>"
+  http_authorization_key = "<HTTP AUTHORIZATION HERE>"
 }
 ```
 
@@ -65,6 +70,9 @@ module "ilert-kube-agent" {
 terraform init
 terraform apply
 ```
+
+**Note:** In-cluster HTTP routes are only functional when the `http_authorization_key` is set.
+
 
 ### Lambda Deployment
 
