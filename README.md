@@ -49,7 +49,7 @@ helm upgrade --install --namespace kube-systems \
     --set config.settings.httpAuthorizationKey="<HTTP AUTHORIZATION HERE>"
 ```
 
-**Note:** In-cluster HTTP routes are only functional when the `httpAuthorizationKey` is set. Make sure to set `inClusterRoutesEnabled=true`. If `httpAuthorizationKey` is not given, a random alphanumeric string with 64 characters will be generated.
+**Note:** In-cluster HTTP routes are only functional when both `inClusterRoutesEnabled` is `true` and `httpAuthorizationKey` is set. If `httpAuthorizationKey` is not given, a random alphanumeric string with 64 characters will be generated.
 
 ### Terraform Deployment (recommended)
 
