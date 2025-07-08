@@ -37,6 +37,7 @@ func parseAndValidateFlags() *config.Config {
 	flag.String("settings.electionID", "ilert-kube-agent", "The lease lock resource name")
 	flag.Int("settings.port", 9092, "The metrics server port")
 	flag.String("settings.apiKey", "", "(REQUIRED) The iLert alert source api key")
+	flag.String("settings.httpAuthorizationKey", "", "The authorization key for ilert AI agent")
 	flag.String("settings.checkInterval", "15s", "The evaluation check interval e.g. resources check")
 
 	flag.Bool("alarms.cluster.enabled", true, "Enable cluster alarms")
