@@ -40,6 +40,7 @@ func CreateEvent(
 	}
 
 	limitKey := fmt.Sprintf("%s:%s", alertKey, eventType)
+	resolveLimitKey := fmt.Sprintf("%s:%s", alertKey, ilert.EventTypes.Resolve)
 	currentRate, err := cache.Cache.Events.GetInt64Item(limitKey)
 	if err != nil {
 		log.Warn().Err(err).Str("limit_key", limitKey).Msg("Failed to get current rate for alert key")
@@ -85,6 +86,7 @@ func CreateEvent(
 
 	if eventType == ilert.EventTypes.Alert {
 		cache.Cache.Events.IncrementItemBy(limitKey, 1, time.Minute*1)
+		cache.Cache.Events.SetInt64Item(resolveLimitKey, 0, time.Minute*30)
 	} else if eventType == ilert.EventTypes.Resolve {
 		cache.Cache.Events.IncrementItemBy(limitKey, 1, time.Minute*30)
 	}

@@ -74,6 +74,29 @@ func (rc *cacheClientInterface) SetItem(key string, in string, ttl time.Duration
 	return nil
 }
 
+// SetInt64Item sets item value to cache by key
+func (rc *cacheClientInterface) SetInt64Item(key string, in int64, ttl time.Duration) error {
+	if !rc.CheckInitialization() {
+		return errors.New(" Cache is not initialized ")
+	}
+
+	if rc.Client == nil {
+		rc.lruClient.Set(key, in, ttl)
+		return nil
+	}
+
+	ctx, cancelFn := context.WithTimeout(context.TODO(), defaultTimeout)
+	defer cancelFn()
+
+	err := rc.Client.Set(ctx, key, in, ttl).Err()
+	if err != nil {
+		log.Error().Err(err).Str("key", key).Msg("Failed to set cache item")
+		return err
+	}
+	log.Debug().Str("key", key).Msg("Set cache item")
+	return nil
+}
+
 // GetItem gets item string from cache by key
 func (rc *cacheClientInterface) GetItem(key string) (string, error) {
 	if !rc.CheckInitialization() {
