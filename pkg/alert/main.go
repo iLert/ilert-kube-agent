@@ -16,7 +16,8 @@ import (
 
 var ilertClient *ilert.Client
 
-const alertEventRateLimitPerMinute = 10
+const alertEventRateLimitPerMinute = 1
+const resolveEventRateLimitPer30Minute = 1
 
 // CreateEvent creates an alert event
 func CreateEvent(
@@ -38,16 +39,23 @@ func CreateEvent(
 		return errors.New("Failed to create an alert event. API key is required")
 	}
 
-	currentRate, err := cache.Cache.Events.GetInt64Item(alertKey)
+	limitKey := fmt.Sprintf("%s:%s", alertKey, eventType)
+	currentRate, err := cache.Cache.Events.GetInt64Item(limitKey)
 	if err != nil {
-		log.Warn().Err(err).Str("alert_key", alertKey).Msg("Failed to get current rate for alert key")
+		log.Warn().Err(err).Str("limit_key", limitKey).Msg("Failed to get current rate for alert key")
 		currentRate = 0
 	}
 
-	if currentRate >= alertEventRateLimitPerMinute {
+	if eventType == ilert.EventTypes.Resolve && currentRate >= resolveEventRateLimitPer30Minute {
 		log.Warn().
 			Int64("current_rate", currentRate).
-			Str("alert_key", alertKey).
+			Str("limit_key", limitKey).
+			Msg("Current rate is greater than the resolve event rate limit, skipping resolve event")
+		return nil
+	} else if currentRate >= alertEventRateLimitPerMinute {
+		log.Warn().
+			Int64("current_rate", currentRate).
+			Str("limit_key", limitKey).
 			Msg("Current rate is greater than the alert event rate limit, skipping alert event")
 		return nil
 	}
@@ -75,7 +83,11 @@ func CreateEvent(
 		return err
 	}
 
-	cache.Cache.Events.IncrementItemBy(alertKey, 1, time.Minute*1)
+	if eventType == ilert.EventTypes.Alert {
+		cache.Cache.Events.IncrementItemBy(limitKey, 1, time.Minute*1)
+	} else if eventType == ilert.EventTypes.Resolve {
+		cache.Cache.Events.IncrementItemBy(limitKey, 1, time.Minute*30)
+	}
 
 	log.Info().Str("summary", summary).Str("alert_key", alertKey).Msg("Alert event created")
 
