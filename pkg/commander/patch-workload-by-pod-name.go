@@ -95,6 +95,9 @@ func setResourcesByPodName(clientset *kubernetes.Clientset, namespace, podName s
 	case WorkloadTypeStatefulSet:
 		newPodName, err := setStatefulSetResources(clientset, namespace, workload.Name, resources, waitTimeout)
 		return newPodName, err, false
+	case WorkloadTypeDaemonSet:
+		newPodName, err := setDaemonSetResources(clientset, namespace, workload.Name, resources, waitTimeout)
+		return newPodName, err, false
 	default:
 		log.Error().
 			Str("pod_name", podName).
@@ -231,6 +234,67 @@ func setStatefulSetResources(clientset *kubernetes.Clientset, namespace, statefu
 	}
 
 	return newPodName, err
+}
+
+func setDaemonSetResources(clientset *kubernetes.Clientset, namespace, daemonSetName string, resources *Resources, waitTimeout time.Duration) (*string, error) {
+	daemonSet, err := clientset.AppsV1().DaemonSets(namespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
+	if err != nil {
+		log.Error().Err(err).
+			Str("daemonset_name", daemonSetName).
+			Str("namespace", namespace).
+			Msg("failed to get daemonset")
+		return nil, fmt.Errorf("failed to get daemonset: %v", err)
+	}
+
+	var patches []map[string]interface{}
+	for i := range daemonSet.Spec.Template.Spec.Containers {
+		containerPatches := createContainerResourcePatches(i, &daemonSet.Spec.Template.Spec.Containers[i], resources)
+		patches = append(patches, containerPatches...)
+	}
+	resourcePatchCount := len(patches)
+
+	// Note: DaemonSets don't use replicas field - they run one pod per node
+	// So we skip replicas handling for DaemonSets
+
+	if len(patches) == 0 {
+		return nil, fmt.Errorf("no resource changes specified")
+	}
+
+	patchBytes, err := json.Marshal(patches)
+	if err != nil {
+		log.Error().Err(err).
+			Str("daemonset_name", daemonSetName).
+			Str("namespace", namespace).
+			Msg("failed to marshal patches")
+		return nil, fmt.Errorf("failed to marshal patches: %v", err)
+	}
+
+	_, err = clientset.AppsV1().DaemonSets(namespace).Patch(context.TODO(), daemonSetName, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var newPodName *string
+	chNewPodName := make(chan *string, 1)
+	chError := make(chan error, 1)
+	if resourcePatchCount > 0 {
+		go getNewPodNameForDaemonSet(daemonSet, clientset, waitTimeout, chNewPodName, chError)
+		newPodName = <-chNewPodName
+		err = <-chError
+	} else {
+		go getRunningPodNameForDaemonSet(daemonSet, clientset, waitTimeout, chNewPodName, chError)
+		newPodName = <-chNewPodName
+		err = <-chError
+	}
+	if err != nil {
+		log.Warn().Err(err).
+			Str("daemonset_name", daemonSetName).
+			Str("namespace", namespace).
+			Msg("failed to wait for the new pod name")
+		return nil, nil
+	}
+
+	return newPodName, nil
 }
 
 func createContainerResourcePatches(containerIndex int, container *corev1.Container, resources *Resources) []map[string]interface{} {

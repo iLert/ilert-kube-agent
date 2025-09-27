@@ -48,13 +48,13 @@ func CreateEvent(
 	}
 
 	if eventType == ilert.EventTypes.Resolve && currentRate >= resolveEventRateLimitPer30Minute {
-		log.Warn().
+		log.Debug().
 			Int64("current_rate", currentRate).
 			Str("limit_key", limitKey).
 			Msg("Current rate is greater than the resolve event rate limit, skipping resolve event")
 		return nil
 	} else if currentRate >= alertEventRateLimitPerMinute {
-		log.Warn().
+		log.Debug().
 			Int64("current_rate", currentRate).
 			Str("limit_key", limitKey).
 			Msg("Current rate is greater than the alert event rate limit, skipping alert event")

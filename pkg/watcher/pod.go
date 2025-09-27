@@ -263,6 +263,8 @@ func getEventLabelsFromPod(pod *api.Pod, clientset *kubernetes.Clientset) map[st
 			labels[string(commander.WorkloadTypeDeployment)] = workload.Name
 		case commander.WorkloadTypeStatefulSet:
 			labels[string(commander.WorkloadTypeStatefulSet)] = workload.Name
+		case commander.WorkloadTypeDaemonSet:
+			labels[string(commander.WorkloadTypeDaemonSet)] = workload.Name
 		}
 	}
 

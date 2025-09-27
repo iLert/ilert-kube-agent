@@ -33,6 +33,7 @@ type WorkloadInfo struct {
 const (
 	WorkloadTypeDeployment  WorkloadType = "deployment"
 	WorkloadTypeStatefulSet WorkloadType = "statefulset"
+	WorkloadTypeDaemonSet   WorkloadType = "daemonset"
 )
 
 type Resources struct {

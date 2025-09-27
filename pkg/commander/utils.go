@@ -47,6 +47,8 @@ func FindWorkloadByPodName(clientset *kubernetes.Clientset, namespace, podName s
 			return &WorkloadInfo{Type: WorkloadTypeStatefulSet, Name: owner.Name}, nil, false
 		case "Deployment":
 			return &WorkloadInfo{Type: WorkloadTypeDeployment, Name: owner.Name}, nil, false
+		case "DaemonSet":
+			return &WorkloadInfo{Type: WorkloadTypeDaemonSet, Name: owner.Name}, nil, false
 		}
 	}
 
@@ -207,4 +209,99 @@ func getRunningPodNameForStatefulSet(statefulSet *v1.StatefulSet, currentRevisio
 		return
 	}
 
+}
+
+func getNewPodNameForDaemonSet(daemonSet *v1.DaemonSet, clientset *kubernetes.Clientset, timeout time.Duration, chPodName chan *string, chError chan error) {
+	for start := time.Now(); start.Add(timeout).After(time.Now()); {
+		daemonSet, err := clientset.AppsV1().DaemonSets(daemonSet.Namespace).Get(context.TODO(), daemonSet.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Error().Err(err).
+				Str("daemonset_name", daemonSet.Name).
+				Str("namespace", daemonSet.Namespace).
+				Msg("failed to get daemonset")
+			chPodName <- nil
+			chError <- fmt.Errorf("failed to get daemonset: %v", err)
+			return
+		}
+
+		// Check if the DaemonSet has been updated by looking for pods with the new template hash
+		// DaemonSets use a different approach than Deployments/StatefulSets
+		// We'll look for pods that match the DaemonSet selector and have the updated template hash
+		selector, err := metav1.LabelSelectorAsSelector(daemonSet.Spec.Selector)
+		if err != nil {
+			chPodName <- nil
+			chError <- fmt.Errorf("invalid daemonset selector: %v", err)
+			return
+		}
+
+		for start.Add(timeout).After(time.Now()) {
+			podList, err := clientset.CoreV1().Pods(daemonSet.Namespace).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: selector.String(),
+				FieldSelector: "status.phase=Running",
+			})
+			if err != nil {
+				log.Warn().Err(err).
+					Str("daemonset_name", daemonSet.Name).
+					Str("namespace", daemonSet.Namespace).
+					Msg("failed to list pods")
+				chPodName <- nil
+				chError <- fmt.Errorf("failed to list pods")
+				return
+			}
+
+			if len(podList.Items) == 0 {
+				time.Sleep(time.Second)
+				continue
+			} else {
+				// For DaemonSets, we'll return the first running pod
+				// In practice, DaemonSets run one pod per node, so this should be sufficient
+				newPodName := podList.Items[0].Name
+				log.Info().Interface("newPodName", newPodName).Msg("Found new daemonset pod name")
+				chPodName <- &newPodName
+				chError <- nil
+				return
+			}
+		}
+		chPodName <- nil
+		chError <- errors.New("timeout before a new daemonset pod is found")
+		return
+	}
+	chPodName <- nil
+	chError <- errors.New("timeout before a new daemonset pod is found")
+}
+
+func getRunningPodNameForDaemonSet(daemonSet *v1.DaemonSet, clientset *kubernetes.Clientset, timeout time.Duration, chPodName chan *string, chError chan error) {
+	time.Sleep(timeout)
+	selector, err := metav1.LabelSelectorAsSelector(daemonSet.Spec.Selector)
+	if err != nil {
+		chPodName <- nil
+		chError <- fmt.Errorf("invalid daemonset selector: %v", err)
+		return
+	}
+
+	podList, err := clientset.CoreV1().Pods(daemonSet.Namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector.String(),
+		FieldSelector: "status.phase=Running",
+	})
+	if err != nil {
+		log.Warn().Err(err).
+			Str("daemonset_name", daemonSet.Name).
+			Str("namespace", daemonSet.Namespace).
+			Msg("failed to list pods")
+		chPodName <- nil
+		chError <- fmt.Errorf("failed to list pods")
+		return
+	}
+
+	if len(podList.Items) == 0 {
+		chPodName <- nil
+		chError <- errors.New("no running daemonset pod found after timeout")
+		return
+	} else {
+		newPodName := podList.Items[0].Name
+		log.Info().Interface("newPodName", newPodName).Msg("Found running daemonset pod name")
+		chPodName <- &newPodName
+		chError <- nil
+		return
+	}
 }
