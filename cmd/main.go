@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/iLert/ilert-kube-agent/pkg/cache"
 	"github.com/iLert/ilert-kube-agent/pkg/router"
 	"github.com/iLert/ilert-kube-agent/pkg/storage"
 	"github.com/iLert/ilert-kube-agent/pkg/watcher"
@@ -35,6 +36,8 @@ func main() {
 		watcher.RunOnce(cfg)
 		return
 	}
+
+	cache.Cache.Init()
 
 	srg := &storage.Storage{}
 	srg.Init()

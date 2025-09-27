@@ -10,7 +10,9 @@ require (
 	github.com/gin-contrib/logger v0.0.2
 	github.com/gin-contrib/size v0.0.0-20200916080119-37b334d93b20
 	github.com/gin-gonic/gin v1.6.3
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/iLert/ilert-go/v3 v3.12.3
+	github.com/karlseguin/ccache/v2 v2.0.8
 	github.com/prometheus/client_golang v1.22.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/zerolog v1.20.0
@@ -49,6 +51,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/denis-tingajkin/go-header v0.3.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -119,7 +122,6 @@ require (
 	github.com/nakabonne/nestif v0.3.0 // indirect
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d // indirect
 	github.com/nishanths/exhaustive v0.0.0-20200525081945-8e46705b6132 // indirect
-	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d // indirect
 	github.com/pkg/errors v0.9.1 // indirect
