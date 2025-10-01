@@ -1,5 +1,8 @@
 settings:
   ## (REQUIRED) The iLert alert source api key
+  ## You can provide a single API key or multiple API keys separated by commas
+  ## Single API key: apiKey: "your-single-api-key-here"
+  ## Multiple API keys: apiKey: "api-key-1,api-key-2,api-key-3"
   # apiKey: <YOU-API-KEY>
 
   ## Path to a kubeconfig. Only required if out-of-cluster.

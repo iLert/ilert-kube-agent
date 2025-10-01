@@ -13,6 +13,35 @@ server and generates alerts about the health state of the pods and the nodes.
 <sub>Pod alert example:</sup>
 ![Pod alert example](img/slack_pod_cpu_alert.png)
 
+## Configuration
+
+### API Key Configuration
+
+The iLert kube agent requires an API key to send alerts to iLert. You can configure a single API key or multiple API keys separated by commas.
+
+**Single API Key:**
+```yaml
+settings:
+  apiKey: "your-single-api-key-here"
+```
+
+**Multiple API Keys:**
+```yaml
+settings:
+  apiKey: "api-key-1,api-key-2,api-key-3"
+```
+
+When multiple API keys are provided, the agent will send alerts to all configured iLert alert sources. This is useful for:
+- Sending alerts to multiple teams or environments
+- Redundancy and failover scenarios
+- Different alert routing based on API key configuration
+
+**Environment Variable:**
+You can also set the API key using the `ILERT_API_KEY` environment variable:
+```bash
+export ILERT_API_KEY="api-key-1,api-key-2,api-key-3"
+```
+
 ## Usage
 
 Simply build and run ilert-kube-agent to get Kubernetes cluster alarms.
@@ -51,6 +80,15 @@ helm upgrade --install --namespace kube-systems \
 
 **Note:** In-cluster HTTP routes are only functional when both `inClusterRoutesEnabled` is `true` and `config.settings.httpAuthorizationKey` is set. If `config.settings.httpAuthorizationKey` is not given, a random alphanumeric string with 64 characters will be generated.
 
+**Multiple API Keys:** To use multiple API keys, separate them with commas:
+```sh
+helm upgrade --install --namespace kube-systems \
+    ilert-kube-agent ilert/ilert-kube-agent \
+    --set config.settings.apiKey="key1,key2,key3" \
+    --set inClusterRoutesEnabled=true \
+    --set config.settings.httpAuthorizationKey="<HTTP AUTHORIZATION HERE>"
+```
+
 ### Terraform Deployment (recommended)
 
 - Define module:
@@ -60,6 +98,16 @@ module "ilert-kube-agent" {
   source  = "iLert/ilert-kube-agent/kubernetes"
   replicas = 2
   api_key = "<YOUR KEY HERE>"
+  http_authorization_key = "<HTTP AUTHORIZATION HERE>"
+}
+```
+
+**Multiple API Keys:** To use multiple API keys, separate them with commas:
+```hcl
+module "ilert-kube-agent" {
+  source  = "iLert/ilert-kube-agent/kubernetes"
+  replicas = 2
+  api_key = "key1,key2,key3"
   http_authorization_key = "<HTTP AUTHORIZATION HERE>"
 }
 ```

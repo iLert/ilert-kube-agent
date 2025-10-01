@@ -4,7 +4,7 @@
 
 - Kubernetes cluster 1.15+
 - AWS account with IAM, Lambda and S3 permissions
-- iLert alert source API key
+- iLert alert source API key (single key or multiple keys separated by commas)
 
 ## Deployment
 
@@ -72,4 +72,9 @@ npm install
 
 ```sh
 serverless deploy --conceal --verbose --cluster=<YOUR KUBERNETES CLUSTER NAME HERE> --region=<YOUR KUBERNETES CLUSTER REGION HERE> --api-key=<YOUR KEY HERE>
+```
+
+**Multiple API Keys:** To use multiple API keys, separate them with commas:
+```sh
+serverless deploy --conceal --verbose --cluster=<YOUR KUBERNETES CLUSTER NAME HERE> --region=<YOUR KUBERNETES CLUSTER REGION HERE> --api-key="key1,key2,key3"
 ```
