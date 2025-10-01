@@ -41,7 +41,7 @@ func analyzeClusterStatus(cfg *config.Config) error {
 		summary := fmt.Sprintf("Cluster connection is not established: %s", clusterKey)
 		if cfg.Alarms.Cluster.Enabled {
 			details := getConfigDetails(cfg)
-			alert.CreateEvent(cfg, alertKeyInit, summary, details, ilert.EventTypes.Alert, ilert.AlertPriorities.High, labels, nil, nil)
+			alert.CreateEvent(cfg, alertKeyInit, summary, details, ilert.EventTypes.Alert, ilert.AlertPriorities.High, labels, nil, nil, nil)
 		}
 		return errors.New(summary)
 	}
@@ -56,7 +56,7 @@ func analyzeClusterStatus(cfg *config.Config) error {
 			summary := fmt.Sprintf("Failed to get nodes from apiserver %s", clusterKey)
 			details := getConfigDetails(cfg)
 			details += fmt.Sprintf("\n\nError: \n%v", err.Error())
-			alert.CreateEvent(cfg, alertKeyClient, summary, details, ilert.EventTypes.Alert, ilert.AlertPriorities.High, labels, nil, nil)
+			alert.CreateEvent(cfg, alertKeyClient, summary, details, ilert.EventTypes.Alert, ilert.AlertPriorities.High, labels, nil, nil, nil)
 		}
 		return err
 	}
@@ -75,7 +75,7 @@ func analyzeClusterStatus(cfg *config.Config) error {
 		summary := fmt.Sprintf("Cluster is not healthy: %s", clusterKey)
 		if cfg.Alarms.Cluster.Enabled {
 			details := getConfigDetails(cfg)
-			alert.CreateEvent(cfg, alertKeyHealth, summary, details, ilert.EventTypes.Alert, ilert.AlertPriorities.High, labels, nil, nil)
+			alert.CreateEvent(cfg, alertKeyHealth, summary, details, ilert.EventTypes.Alert, ilert.AlertPriorities.High, labels, nil, nil, nil)
 		}
 		return errors.New(summary)
 	}

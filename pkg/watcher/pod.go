@@ -3,6 +3,7 @@ package watcher
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -86,6 +87,8 @@ func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string
 	shortDatePattern := regexp.MustCompile(`(\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2})`)
 	monthDayPattern := regexp.MustCompile(`(\w{3} \d{1,2} \d{2}:\d{2}:\d{2})`)
 
+	const maxLogsSize = 24 * 1024 // 24KB
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -107,7 +110,6 @@ func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string
 			}
 		} else if matches := unixTimestampPattern.FindStringSubmatch(line); len(matches) > 1 {
 			if unixTs, err := strconv.ParseInt(matches[1], 10, 64); err == nil {
-				// Handle both seconds and milliseconds timestamps
 				if unixTs > 1e10 {
 					unixTs = unixTs / 1000
 				}
@@ -121,7 +123,6 @@ func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string
 			}
 		} else if matches := monthDayPattern.FindStringSubmatch(line); len(matches) > 1 {
 			if parsedTime, err := time.Parse("Jan 2 15:04:05", matches[1]); err == nil {
-				// Syslog format doesn't include year, use current year
 				now := time.Now()
 				parsedTime = time.Date(now.Year(), parsedTime.Month(), parsedTime.Day(),
 					parsedTime.Hour(), parsedTime.Minute(), parsedTime.Second(), 0, now.Location())
@@ -144,11 +145,20 @@ func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string
 			}
 		}
 
-		eventLogs = append(eventLogs, ilert.EventLog{
+		eventLog := ilert.EventLog{
 			Timestamp: timestamp,
 			Level:     level,
 			Body:      line,
-		})
+		}
+
+		testLogs := append(eventLogs, eventLog)
+		if jsonData, err := json.Marshal(testLogs); err == nil {
+			if len(jsonData) > maxLogsSize {
+				break
+			}
+		}
+
+		eventLogs = append(eventLogs, eventLog)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -157,6 +167,28 @@ func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string
 	}
 
 	return eventLogs
+}
+
+func getPodCustomDetails(containerStatus *api.ContainerStatus) map[string]interface{} {
+	if containerStatus == nil {
+		return nil
+	}
+	customDetails := map[string]interface{}{}
+	if containerStatus != nil && containerStatus.State.Waiting != nil {
+		customDetails["reason"] = containerStatus.State.Waiting.Reason
+		customDetails["message"] = containerStatus.State.Waiting.Message
+	}
+	if containerStatus != nil && containerStatus.State.Terminated != nil {
+		customDetails["reason"] = containerStatus.State.Terminated.Reason
+		customDetails["signal"] = containerStatus.State.Terminated.Signal
+		customDetails["exit_code"] = containerStatus.State.Terminated.ExitCode
+		customDetails["started_at"] = containerStatus.State.Terminated.StartedAt
+		customDetails["finished_at"] = containerStatus.State.Terminated.FinishedAt
+	}
+	if containerStatus.StopSignal != nil {
+		customDetails["stop_signal"] = containerStatus.StopSignal
+	}
+	return customDetails
 }
 
 func getPodMustacheValues(pod *api.Pod) map[string]string {
@@ -195,7 +227,8 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
 			podLogs := getPodLogs(cfg.KubeClient, pod, containerStatus.Name)
-			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Terminate.Priority, labels, links, podLogs)
+			customDetails := getPodCustomDetails(&containerStatus)
+			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Terminate.Priority, labels, links, podLogs, customDetails)
 			break
 		}
 
@@ -206,7 +239,8 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
 			podLogs := getPodLogs(cfg.KubeClient, pod, containerStatus.Name)
-			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Waiting.Priority, labels, links, podLogs)
+			customDetails := getPodCustomDetails(&containerStatus)
+			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Waiting.Priority, labels, links, podLogs, customDetails)
 			break
 		}
 
@@ -215,7 +249,8 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
 			podLogs := getPodLogs(cfg.KubeClient, pod, containerStatus.Name)
-			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Restarts.Priority, labels, links, podLogs)
+			customDetails := getPodCustomDetails(&containerStatus)
+			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Restarts.Priority, labels, links, podLogs, customDetails)
 			break
 		}
 	}
@@ -279,7 +314,7 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 					summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.CPU.Threshold)
 					details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 					links := getPodLinks(cfg, pod)
-					alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority, labels, links, nil)
+					alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority, labels, links, nil, nil)
 				}
 			}
 		}
@@ -299,13 +334,13 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 					summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Memory.Threshold)
 					details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 					links := getPodLinks(cfg, pod)
-					alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority, labels, links, nil)
+					alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority, labels, links, nil, nil)
 				}
 			}
 		}
 	}
 	if healthy {
-		alert.CreateEvent(cfg, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "", labels, nil, nil)
+		alert.CreateEvent(cfg, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "", labels, nil, nil, nil)
 	}
 
 	return nil

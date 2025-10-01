@@ -31,6 +31,7 @@ func CreateEvent(
 	labels map[string]string,
 	links []ilert.AlertLink,
 	logs []ilert.EventLog,
+	customDetails map[string]interface{},
 ) error {
 	if ilertClient == nil {
 		ilertClient = ilert.NewClient(ilert.WithUserAgent(fmt.Sprintf("ilert-kube-agent/%s", shared.Version)))
@@ -84,15 +85,16 @@ func CreateEvent(
 		}
 
 		event := &ilert.Event{
-			AlertKey:  alertKey,
-			Summary:   summary,
-			Details:   details,
-			EventType: eventType,
-			APIKey:    apiKey,
-			Priority:  priority,
-			Links:     links,
-			Labels:    labels,
-			Logs:      logs,
+			AlertKey:      alertKey,
+			Summary:       summary,
+			Details:       details,
+			EventType:     eventType,
+			APIKey:        apiKey,
+			Priority:      priority,
+			Links:         links,
+			Labels:        labels,
+			Logs:          logs,
+			CustomDetails: customDetails,
 		}
 
 		log.Debug().Interface("event", event).Str("api_key", apiKey).Msg("Creating alert event")
