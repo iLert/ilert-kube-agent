@@ -1,12 +1,14 @@
 package watcher
 
 import (
-	"bytes"
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"regexp"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/cbroglie/mustache"
 	"github.com/dustin/go-humanize"
@@ -59,15 +61,10 @@ func getPodDetailsWithStatus(kubeClient *kubernetes.Clientset, pod *api.Pod, con
 		)
 	}
 
-	podLogs := getPodLogs(kubeClient, pod, containerStatus.Name)
-	if podLogs != "" {
-		details += fmt.Sprintf("\nLogs:\n%s", podLogs)
-	}
-
 	return details
 }
 
-func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string) string {
+func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string) []ilert.EventLog {
 	podLogOpts := api.PodLogOptions{
 		TailLines: utils.Int64(50),
 		Container: container,
@@ -76,18 +73,90 @@ func getPodLogs(kubeClient *kubernetes.Clientset, pod *api.Pod, container string
 	req := kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
 	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
-		return ""
+		return nil
 	}
 	defer podLogs.Close()
 
-	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, podLogs)
-	if err != nil {
-		return ""
+	var eventLogs []ilert.EventLog
+	scanner := bufio.NewScanner(podLogs)
+
+	levelPattern := regexp.MustCompile(`(?i)(ERROR|WARN|WARNING|INFO|DEBUG|FATAL|PANIC|ERR|WRN|INF|SEVERE|TRACE|CRITICAL|CRIT|EMERGENCY|EMERG|CONFIG|FINE|FINER|FINEST)`)
+	timestampPattern := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:\d{2})?)`)
+	unixTimestampPattern := regexp.MustCompile(`(\d{10,13})`)
+	shortDatePattern := regexp.MustCompile(`(\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2})`)
+	monthDayPattern := regexp.MustCompile(`(\w{3} \d{1,2} \d{2}:\d{2}:\d{2})`)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		timestamp := time.Now().Format(time.RFC3339)
+
+		if matches := timestampPattern.FindStringSubmatch(line); len(matches) > 1 {
+			tsStr := matches[1]
+			if parsedTime, err := time.Parse(time.RFC3339, tsStr); err == nil {
+				timestamp = parsedTime.Format(time.RFC3339)
+			} else if parsedTime, err := time.Parse("2006-01-02 15:04:05", tsStr); err == nil {
+				timestamp = parsedTime.Format(time.RFC3339)
+			} else if parsedTime, err := time.Parse("2006-01-02 15:04:05,000", tsStr); err == nil {
+				timestamp = parsedTime.Format(time.RFC3339)
+			} else if parsedTime, err := time.Parse("2006-01-02 15:04:05.000", tsStr); err == nil {
+				timestamp = parsedTime.Format(time.RFC3339)
+			}
+		} else if matches := unixTimestampPattern.FindStringSubmatch(line); len(matches) > 1 {
+			if unixTs, err := strconv.ParseInt(matches[1], 10, 64); err == nil {
+				// Handle both seconds and milliseconds timestamps
+				if unixTs > 1e10 {
+					unixTs = unixTs / 1000
+				}
+				if parsedTime := time.Unix(unixTs, 0); !parsedTime.IsZero() {
+					timestamp = parsedTime.Format(time.RFC3339)
+				}
+			}
+		} else if matches := shortDatePattern.FindStringSubmatch(line); len(matches) > 1 {
+			if parsedTime, err := time.Parse("01/02/2006 15:04:05", matches[1]); err == nil {
+				timestamp = parsedTime.Format(time.RFC3339)
+			}
+		} else if matches := monthDayPattern.FindStringSubmatch(line); len(matches) > 1 {
+			if parsedTime, err := time.Parse("Jan 2 15:04:05", matches[1]); err == nil {
+				// Syslog format doesn't include year, use current year
+				now := time.Now()
+				parsedTime = time.Date(now.Year(), parsedTime.Month(), parsedTime.Day(),
+					parsedTime.Hour(), parsedTime.Minute(), parsedTime.Second(), 0, now.Location())
+				timestamp = parsedTime.Format(time.RFC3339)
+			}
+		}
+
+		level := "INFO"
+		if matches := levelPattern.FindStringSubmatch(line); len(matches) > 1 {
+			detectedLevel := strings.ToUpper(matches[1])
+			switch detectedLevel {
+			case "ERROR", "ERR", "FATAL", "PANIC", "SEVERE", "CRITICAL", "CRIT", "EMERGENCY", "EMERG":
+				level = "ERROR"
+			case "WARN", "WARNING", "WRN":
+				level = "WARN"
+			case "DEBUG", "TRACE", "FINE", "FINER", "FINEST":
+				level = "DEBUG"
+			case "INFO", "INF", "CONFIG":
+				level = "INFO"
+			}
+		}
+
+		eventLogs = append(eventLogs, ilert.EventLog{
+			Timestamp: timestamp,
+			Level:     level,
+			Body:      line,
+		})
 	}
 
-	return buf.String()
+	if err := scanner.Err(); err != nil {
+		log.Warn().Err(err).Msg("Error reading pod logs")
+		return nil
+	}
 
+	return eventLogs
 }
 
 func getPodMustacheValues(pod *api.Pod) map[string]string {
@@ -125,7 +194,8 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			summary := fmt.Sprintf("Pod %s/%s terminated - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Terminated.Reason)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
-			alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Terminate.Priority, labels)
+			podLogs := getPodLogs(cfg.KubeClient, pod, containerStatus.Name)
+			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Terminate.Priority, labels, links, podLogs)
 			break
 		}
 
@@ -135,7 +205,8 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			summary := fmt.Sprintf("Pod %s/%s waiting - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Waiting.Reason)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
-			alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Waiting.Priority, labels)
+			podLogs := getPodLogs(cfg.KubeClient, pod, containerStatus.Name)
+			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Waiting.Priority, labels, links, podLogs)
 			break
 		}
 
@@ -143,7 +214,8 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 			summary := fmt.Sprintf("Pod %s/%s restarts threshold reached: %d", pod.GetNamespace(), pod.GetName(), containerStatus.RestartCount)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)
-			alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Restarts.Priority, labels)
+			podLogs := getPodLogs(cfg.KubeClient, pod, containerStatus.Name)
+			alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Restarts.Priority, labels, links, podLogs)
 			break
 		}
 	}
@@ -207,7 +279,7 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 					summary := fmt.Sprintf("Pod %s/%s CPU limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.CPU.Threshold)
 					details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 					links := getPodLinks(cfg, pod)
-					alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority, labels)
+					alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.CPU.Priority, labels, links, nil)
 				}
 			}
 		}
@@ -227,13 +299,13 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 					summary := fmt.Sprintf("Pod %s/%s memory limit reached > %d%%", pod.GetNamespace(), pod.GetName(), cfg.Alarms.Pods.Resources.Memory.Threshold)
 					details := getPodDetailsWithUsageLimit(cfg.KubeClient, pod, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 					links := getPodLinks(cfg, pod)
-					alert.CreateEvent(cfg, links, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority, labels)
+					alert.CreateEvent(cfg, podKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Pods.Resources.Memory.Priority, labels, links, nil)
 				}
 			}
 		}
 	}
 	if healthy {
-		alert.CreateEvent(cfg, nil, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "", labels)
+		alert.CreateEvent(cfg, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "", labels, nil, nil)
 	}
 
 	return nil

@@ -23,13 +23,14 @@ const resolveEventRateLimitPer30Minute = 1
 // CreateEvent creates an alert event
 func CreateEvent(
 	cfg *config.Config,
-	links []ilert.AlertLink,
 	alertKey string,
 	summary string,
 	details string,
 	eventType string,
 	priority string,
 	labels map[string]string,
+	links []ilert.AlertLink,
+	logs []ilert.EventLog,
 ) error {
 	if ilertClient == nil {
 		ilertClient = ilert.NewClient(ilert.WithUserAgent(fmt.Sprintf("ilert-kube-agent/%s", shared.Version)))
@@ -91,6 +92,7 @@ func CreateEvent(
 			Priority:  priority,
 			Links:     links,
 			Labels:    labels,
+			Logs:      logs,
 		}
 
 		log.Debug().Interface("event", event).Str("api_key", apiKey).Msg("Creating alert event")

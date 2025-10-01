@@ -80,7 +80,7 @@ func analyzeNodeStatus(node *api.Node, cfg *config.Config) {
 		summary := fmt.Sprintf("Node %s terminated", node.GetName())
 		details := getNodeDetails(cfg.KubeClient, node)
 		links := getNodeLinks(cfg, node)
-		alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Terminate.Priority, labels)
+		alert.CreateEvent(cfg, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Terminate.Priority, labels, links, nil)
 	}
 }
 
@@ -132,7 +132,7 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 				summary := fmt.Sprintf("Node %s CPU limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.CPU.Threshold)
 				details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, fmt.Sprintf("%.3f CPU", cpuUsage), fmt.Sprintf("%.3f CPU", cpuLimit))
 				links := getNodeLinks(cfg, node)
-				alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.CPU.Priority, labels)
+				alert.CreateEvent(cfg, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.CPU.Priority, labels, links, nil)
 			}
 		}
 	}
@@ -150,13 +150,13 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 				summary := fmt.Sprintf("Node %s memory limit reached > %d%%", node.GetName(), cfg.Alarms.Nodes.Resources.Memory.Threshold)
 				details := getNodeDetailsWithUsageLimit(cfg.KubeClient, node, humanize.Bytes(uint64(memoryUsage)), humanize.Bytes(uint64(memoryLimit)))
 				links := getNodeLinks(cfg, node)
-				alert.CreateEvent(cfg, links, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Memory.Priority, labels)
+				alert.CreateEvent(cfg, nodeKey, summary, details, ilert.EventTypes.Alert, cfg.Alarms.Nodes.Resources.Memory.Priority, labels, links, nil)
 			}
 		}
 	}
 
 	if healthy {
-		alert.CreateEvent(cfg, nil, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, "", labels)
+		alert.CreateEvent(cfg, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, "", labels, nil, nil)
 	}
 	return nil
 }
