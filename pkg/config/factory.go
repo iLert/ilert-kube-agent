@@ -47,13 +47,35 @@ func (cfg *Config) initializeClients() {
 }
 
 func (cfg *Config) Print() {
+	// Create a sanitized copy of Settings with sensitive values masked
+	sanitizedSettings := ConfigSettings{
+		APIKey:               maskIfNotEmpty(cfg.Settings.APIKey),
+		HttpAuthorizationKey: maskIfNotEmpty(cfg.Settings.HttpAuthorizationKey),
+		KubeConfig:           cfg.Settings.KubeConfig,
+		Master:               cfg.Settings.Master,
+		Insecure:             cfg.Settings.Insecure,
+		Namespace:            cfg.Settings.Namespace,
+		Port:                 cfg.Settings.Port,
+		Log:                  cfg.Settings.Log,
+		ElectionID:           cfg.Settings.ElectionID,
+		CheckInterval:        cfg.Settings.CheckInterval,
+	}
+
 	log.Info().Interface("config", struct {
 		Settings ConfigSettings
 		Alarms   ConfigAlarms
 		Links    ConfigLinks
 	}{
-		Settings: cfg.Settings,
+		Settings: sanitizedSettings,
 		Alarms:   cfg.Alarms,
 		Links:    cfg.Links,
 	}).Msg("Starting with config")
+}
+
+// maskIfNotEmpty returns "(sensitive value)" if the string is not empty, otherwise returns the original string
+func maskIfNotEmpty(s string) string {
+	if s != "" {
+		return "(sensitive value)"
+	}
+	return s
 }

@@ -119,7 +119,7 @@ func CreateEvent(
 		}
 
 		successCount++
-		log.Info().Str("summary", summary).Str("alert_key", alertKey).Str("api_key", apiKey).Msg("Alert event created")
+		log.Info().Str("summary", summary).Str("alert_key", alertKey).Msg("Alert event created")
 	}
 
 	// Return error only if all API keys failed
