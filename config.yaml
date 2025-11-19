@@ -48,6 +48,10 @@ alarms:
       enabled: true
       ## The pod terminate alarm alert priority
       priority: HIGH
+      ## List of termination reasons to exclude from alerts
+      ## Available reasons: Terminated, OOMKilled, Error, ContainerCannotRun, DeadlineExceeded, Evicted
+      ## Example: excludedReasons: ["Terminated"]
+      # excludedReasons: []
 
     waiting:
       ## Enables waiting pod alarms

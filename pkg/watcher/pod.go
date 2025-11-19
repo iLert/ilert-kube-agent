@@ -223,6 +223,14 @@ func analyzePodStatus(pod *api.Pod, cfg *config.Config) {
 		if containerStatus.State.Terminated != nil &&
 			utils.StringContains(containerTerminatedReasons, containerStatus.State.Terminated.Reason) &&
 			cfg.Alarms.Pods.Terminate.Enabled {
+			if utils.StringContains(cfg.Alarms.Pods.Terminate.ExcludedReasons, containerStatus.State.Terminated.Reason) {
+				log.Debug().
+					Str("pod", pod.GetName()).
+					Str("namespace", pod.GetNamespace()).
+					Str("reason", containerStatus.State.Terminated.Reason).
+					Msg("Skipping alert for excluded termination reason")
+				continue
+			}
 			summary := fmt.Sprintf("Pod %s/%s terminated - %s", pod.GetNamespace(), pod.GetName(), containerStatus.State.Terminated.Reason)
 			details := getPodDetailsWithStatus(cfg.KubeClient, pod, &containerStatus)
 			links := getPodLinks(cfg, pod)

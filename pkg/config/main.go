@@ -62,15 +62,16 @@ type ConfigAlarmsNodes struct {
 
 // ConfigAlarmSetting definition
 type ConfigAlarmSetting struct {
-	Enabled  bool   `yaml:"enabled" json:"enabled"`
-	Priority string `yaml:"priority" json:"priority"`
+	Enabled         bool     `yaml:"enabled" json:"enabled"`
+	Priority        string   `yaml:"priority" json:"priority"`
+	ExcludedReasons []string `yaml:"excludedReasons" json:"excludedReasons"`
 }
 
 // ConfigAlarmSettingWithThreshold definition
 type ConfigAlarmSettingWithThreshold struct {
 	Enabled   bool   `yaml:"enabled" json:"enabled"`
 	Priority  string `yaml:"priority" json:"priority"`
-	Threshold int32  `yaml:"priority" json:"priority"`
+	Threshold int32  `yaml:"threshold" json:"threshold"`
 }
 
 // ConfigAlarmSettingResources definition
