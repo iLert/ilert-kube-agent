@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/iLert/ilert-kube-agent/pkg/cache"
+	"github.com/iLert/ilert-kube-agent/pkg/memory"
 	"github.com/iLert/ilert-kube-agent/pkg/router"
 	"github.com/iLert/ilert-kube-agent/pkg/storage"
 	"github.com/iLert/ilert-kube-agent/pkg/watcher"
@@ -29,6 +30,14 @@ const (
 )
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatal().
+				Interface("panic", r).
+				Msg("Fatal panic in main - application cannot continue")
+		}
+	}()
+
 	cfg := parseAndValidateFlags()
 	cfg.Print()
 
@@ -38,6 +47,10 @@ func main() {
 	}
 
 	cache.Cache.Init()
+
+	memoryLimitMB := memory.GetMemoryLimitMB()
+	memory.StartGlobalMonitor(memoryLimitMB)
+	defer memory.StopGlobalMonitor()
 
 	srg := &storage.Storage{}
 	srg.Init()
@@ -50,13 +63,12 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 	}
 
-	// Start Server
-	go func() {
+	memory.SafeGo("http-server", func() {
 		log.Info().Str("address", fmt.Sprintf(":%d", cfg.Settings.Port)).Msg("Starting Server")
-		if err := srv.ListenAndServe(); err != nil {
-			log.Fatal().Err(err).Msg("Failed to start server")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("HTTP server error")
 		}
-	}()
+	})
 
 	id, err := os.Hostname()
 	if err != nil {
@@ -93,14 +105,17 @@ func main() {
 		RetryPeriod:     defaultRetryPeriod,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(_ context.Context) {
+				defer memory.RecoverPanic("leader-election-on-started")
 				log.Info().Str("identity", id).Msg("I am the new leader")
 				watcher.Start(cfg)
 			},
 			OnStoppedLeading: func() {
+				defer memory.RecoverPanic("leader-election-on-stopped")
 				watcher.Stop()
 				log.Info().Str("identity", id).Msg("I am not leader anymore")
 			},
 			OnNewLeader: func(identity string) {
+				defer memory.RecoverPanic("leader-election-on-new-leader")
 				log.Info().Str("identity", identity).Msg("New leader elected")
 			},
 		},

@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/iLert/ilert-kube-agent/pkg/config"
+	"github.com/iLert/ilert-kube-agent/pkg/memory"
 )
 
 var (
@@ -36,6 +37,8 @@ func startPodInformer(cfg *config.Config) {
 	})
 
 	log.Info().Msg("Starting pod informer")
+
+	defer memory.RecoverPanic("pod-informer")
 	podInformer.Run(podInformerStopper)
 }
 

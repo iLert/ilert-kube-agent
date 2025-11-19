@@ -10,6 +10,7 @@ import (
 	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 
 	"github.com/iLert/ilert-kube-agent/pkg/config"
+	"github.com/iLert/ilert-kube-agent/pkg/memory"
 )
 
 var podCheckerCron *cron.Cron
@@ -33,6 +34,16 @@ func stopPodMetricsChecker() {
 }
 
 func checkPods(cfg *config.Config) {
+	defer memory.RecoverPanic("pod-checker")
+
+	if memory.GetGlobalMonitor() != nil && memory.GetGlobalMonitor().IsUnderPressure() {
+		pressureLevel := memory.GetGlobalMonitor().GetPressureLevel()
+		if pressureLevel == "critical" || pressureLevel == "emergency" {
+			log.Warn().Str("pressure_level", pressureLevel).Msg("Skipping pod resource check due to memory pressure")
+			return
+		}
+	}
+
 	if !cfg.Alarms.Pods.Resources.Enabled {
 		return
 	}

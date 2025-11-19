@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/iLert/ilert-kube-agent/pkg/config"
+	"github.com/iLert/ilert-kube-agent/pkg/memory"
 )
 
 var nodeCheckerCron *cron.Cron
@@ -32,6 +33,16 @@ func stopNodeMetricsChecker() {
 }
 
 func checkNodes(cfg *config.Config) {
+	defer memory.RecoverPanic("node-checker")
+
+	if memory.GetGlobalMonitor() != nil && memory.GetGlobalMonitor().IsUnderPressure() {
+		pressureLevel := memory.GetGlobalMonitor().GetPressureLevel()
+		if pressureLevel == "critical" || pressureLevel == "emergency" {
+			log.Warn().Str("pressure_level", pressureLevel).Msg("Skipping node resource check due to memory pressure")
+			return
+		}
+	}
+
 	if !cfg.Alarms.Nodes.Resources.Enabled {
 		return
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/logger"
+	"github.com/iLert/ilert-kube-agent/pkg/memory"
 )
 
 var sharedFactory informers.SharedInformerFactory
@@ -42,12 +43,20 @@ func Start(cfg *config.Config) {
 	log.Info().Msg("Start watcher")
 
 	if cfg.Alarms.Pods.Enabled {
-		go startPodInformer(cfg)
-		go startPodChecker(cfg)
+		memory.SafeGo("pod-informer", func() {
+			startPodInformer(cfg)
+		})
+		memory.SafeGo("pod-checker", func() {
+			startPodChecker(cfg)
+		})
 	}
 	if cfg.Alarms.Nodes.Enabled {
-		go startNodeInformer(cfg)
-		go startNodeChecker(cfg)
+		memory.SafeGo("node-informer", func() {
+			startNodeInformer(cfg)
+		})
+		memory.SafeGo("node-checker", func() {
+			startNodeChecker(cfg)
+		})
 	}
 }
 
