@@ -5,10 +5,13 @@ import (
 
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
 
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 	"github.com/iLert/ilert-kube-agent/pkg/logger"
 )
+
+var sharedFactory informers.SharedInformerFactory
 
 // These are the valid reason for the container waiting
 const (
@@ -56,6 +59,11 @@ func Stop() {
 	stopPodMetricsChecker()
 	stopNodeInformer()
 	stopNodeMetricsChecker()
+
+	if sharedFactory != nil {
+		log.Info().Msg("Stopping shared informer factory")
+		sharedFactory = nil
+	}
 }
 
 // RunOnce run watcher runs e.g. serverless call

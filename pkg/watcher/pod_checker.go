@@ -1,12 +1,12 @@
 package watcher
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	api "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 
 	"github.com/iLert/ilert-kube-agent/pkg/config"
@@ -28,20 +28,36 @@ func stopPodMetricsChecker() {
 	if podCheckerCron != nil {
 		log.Info().Msg("Stopping pods checker")
 		podCheckerCron.Stop()
+		podCheckerCron = nil
 	}
 }
 
 func checkPods(cfg *config.Config) {
-	pods, err := cfg.KubeClient.CoreV1().Pods(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
+	if !cfg.Alarms.Pods.Resources.Enabled {
+		return
 	}
 
-	if cfg.Alarms.Pods.Resources.Enabled {
-		log.Debug().Msg("Running pods resource check")
-		for _, pod := range pods.Items {
-			analyzePodResources(&pod, cfg)
+	informer := GetPodInformer()
+	if informer == nil {
+		log.Warn().Msg("Pod informer not available, skipping resource check")
+		return
+	}
+
+	if !cache.WaitForCacheSync(nil, informer.HasSynced) {
+		log.Warn().Msg("Pod informer cache not synced, skipping resource check")
+		return
+	}
+
+	log.Debug().Msg("Running pods resource check")
+
+	pods := informer.GetStore().List()
+	for _, obj := range pods {
+		pod, ok := obj.(*api.Pod)
+		if !ok {
+			log.Debug().Msg("Failed to convert object to pod, skipping")
+			continue
 		}
+		analyzePodResources(pod, cfg)
 	}
 }
 

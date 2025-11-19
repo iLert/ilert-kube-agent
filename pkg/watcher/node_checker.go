@@ -1,12 +1,12 @@
 package watcher
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	api "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 )
@@ -27,17 +27,35 @@ func stopNodeMetricsChecker() {
 	if nodeCheckerCron != nil {
 		log.Info().Msg("Stopping nodes checker")
 		nodeCheckerCron.Stop()
+		nodeCheckerCron = nil
 	}
 }
 
 func checkNodes(cfg *config.Config) {
-	nodes, err := cfg.KubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get nodes from apiserver")
+	if !cfg.Alarms.Nodes.Resources.Enabled {
+		return
+	}
+
+	informer := GetNodeInformer()
+	if informer == nil {
+		log.Warn().Msg("Node informer not available, skipping resource check")
+		return
+	}
+
+	if !cache.WaitForCacheSync(nil, informer.HasSynced) {
+		log.Warn().Msg("Node informer cache not synced, skipping resource check")
+		return
 	}
 
 	log.Debug().Msg("Running nodes resource check")
-	for _, node := range nodes.Items {
-		analyzeNodeResources(&node, cfg)
+
+	nodes := informer.GetStore().List()
+	for _, obj := range nodes {
+		node, ok := obj.(*api.Node)
+		if !ok {
+			log.Debug().Msg("Failed to convert object to node, skipping")
+			continue
+		}
+		analyzeNodeResources(node, cfg)
 	}
 }

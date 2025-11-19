@@ -1,6 +1,8 @@
 package watcher
 
 import (
+	"time"
+
 	"github.com/rs/zerolog/log"
 	api "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
@@ -9,11 +11,17 @@ import (
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 )
 
-var nodeInformerStopper chan struct{}
+var (
+	nodeInformerStopper chan struct{}
+	nodeInformer        cache.SharedInformer
+)
 
 func startNodeInformer(cfg *config.Config) {
-	factory := informers.NewSharedInformerFactory(cfg.KubeClient, 0)
-	nodeInformer := factory.Core().V1().Nodes().Informer()
+	if sharedFactory == nil {
+		sharedFactory = informers.NewSharedInformerFactory(cfg.KubeClient, 15*time.Minute)
+	}
+
+	nodeInformer = sharedFactory.Core().V1().Nodes().Informer()
 	nodeInformerStopper = make(chan struct{})
 	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
@@ -31,5 +39,10 @@ func stopNodeInformer() {
 	if nodeInformerStopper != nil {
 		log.Info().Msg("Stopping node informer")
 		close(nodeInformerStopper)
+		nodeInformerStopper = nil
 	}
+}
+
+func GetNodeInformer() cache.SharedInformer {
+	return nodeInformer
 }

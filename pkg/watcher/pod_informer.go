@@ -1,6 +1,8 @@
 package watcher
 
 import (
+	"time"
+
 	"github.com/rs/zerolog/log"
 	api "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
@@ -9,11 +11,17 @@ import (
 	"github.com/iLert/ilert-kube-agent/pkg/config"
 )
 
-var podInformerStopper chan struct{}
+var (
+	podInformerStopper chan struct{}
+	podInformer        cache.SharedInformer
+)
 
 func startPodInformer(cfg *config.Config) {
-	factory := informers.NewSharedInformerFactory(cfg.KubeClient, 0)
-	podInformer := factory.Core().V1().Pods().Informer()
+	if sharedFactory == nil {
+		sharedFactory = informers.NewSharedInformerFactory(cfg.KubeClient, 15*time.Minute)
+	}
+
+	podInformer = sharedFactory.Core().V1().Pods().Informer()
 	podInformerStopper = make(chan struct{})
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
@@ -35,5 +43,10 @@ func stopPodInformer() {
 	if podInformerStopper != nil {
 		log.Info().Msg("Stopping pod informer")
 		close(podInformerStopper)
+		podInformerStopper = nil
 	}
+}
+
+func GetPodInformer() cache.SharedInformer {
+	return podInformer
 }
