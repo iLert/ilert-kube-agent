@@ -46,18 +46,20 @@ type ConfigAlarms struct {
 
 // ConfigAlarmsPods definition
 type ConfigAlarmsPods struct {
-	Enabled   bool                            `yaml:"enabled" json:"enabled"`
-	Terminate ConfigAlarmSetting              `yaml:"terminate" json:"terminate"`
-	Waiting   ConfigAlarmSetting              `yaml:"waiting" json:"waiting"`
-	Restarts  ConfigAlarmSettingWithThreshold `yaml:"restarts" json:"restarts"`
-	Resources ConfigAlarmSettingResources     `yaml:"resources" json:"resources"`
+	Enabled           bool                            `yaml:"enabled" json:"enabled"`
+	SendResolveEvents bool                            `yaml:"sendResolveEvents" json:"sendResolveEvents"`
+	Terminate         ConfigAlarmSetting              `yaml:"terminate" json:"terminate"`
+	Waiting           ConfigAlarmSetting              `yaml:"waiting" json:"waiting"`
+	Restarts          ConfigAlarmSettingWithThreshold `yaml:"restarts" json:"restarts"`
+	Resources         ConfigAlarmSettingResources     `yaml:"resources" json:"resources"`
 }
 
 // ConfigAlarmsNodes definition
 type ConfigAlarmsNodes struct {
-	Enabled   bool                        `yaml:"enabled" json:"enabled"`
-	Terminate ConfigAlarmSetting          `yaml:"terminate" json:"terminate"`
-	Resources ConfigAlarmSettingResources `yaml:"resources" json:"resources"`
+	Enabled           bool                        `yaml:"enabled" json:"enabled"`
+	SendResolveEvents bool                        `yaml:"sendResolveEvents" json:"sendResolveEvents"`
+	Terminate         ConfigAlarmSetting          `yaml:"terminate" json:"terminate"`
+	Resources         ConfigAlarmSettingResources `yaml:"resources" json:"resources"`
 }
 
 // ConfigAlarmSetting definition

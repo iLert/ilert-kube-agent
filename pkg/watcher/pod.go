@@ -347,7 +347,7 @@ func analyzePodResources(pod *api.Pod, cfg *config.Config) error {
 			}
 		}
 	}
-	if healthy {
+	if healthy && cfg.Alarms.Pods.SendResolveEvents {
 		alert.CreateEvent(cfg, podKey, fmt.Sprintf("Pod %s/%s recovered", pod.GetNamespace(), pod.GetName()), "", ilert.EventTypes.Resolve, "", labels, nil, nil, nil)
 	}
 

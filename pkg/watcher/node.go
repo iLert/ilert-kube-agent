@@ -155,7 +155,7 @@ func analyzeNodeResources(node *api.Node, cfg *config.Config) error {
 		}
 	}
 
-	if healthy {
+	if healthy && cfg.Alarms.Nodes.SendResolveEvents {
 		alert.CreateEvent(cfg, nodeKey, fmt.Sprintf("Node %s recovered", node.GetName()), "", ilert.EventTypes.Resolve, "", labels, nil, nil, nil)
 	}
 	return nil
